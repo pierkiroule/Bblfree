@@ -437,17 +437,6 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         onStepForward={stepForward}
       />
 
-      {/* Export GIF Button */}
-      <button
-        onClick={handleOpenExportDialog}
-        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold shadow-soft hover:bg-primary/90 transition-all"
-      >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-        Exporter GIF
-      </button>
-
       {/* Canvas Container */}
       <div
         ref={containerRef}
