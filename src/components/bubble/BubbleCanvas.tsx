@@ -88,8 +88,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         radius: dimensions.radius,
         loopDuration: actualLoopDuration,
         strokes,
-        fps: 20,
-        quality: 10,
+        fps: 15,
       });
       setGifDataUrl(result.gif);
       setGifThumbnail(result.thumbnail);
