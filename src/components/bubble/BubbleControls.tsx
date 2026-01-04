@@ -1,9 +1,10 @@
 import React from 'react';
-import { Play, Pause, Trash2, Pencil, Sparkles, CircleDot, Stamp } from 'lucide-react';
+import { Play, Pause, Trash2, Pencil, Sparkles, CircleDot, Stamp, Mic, MicOff } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { BrushMode } from '@/hooks/useLoopTime';
 import { STAMPS, StampType } from './BrushRenderer';
+import { AudioData } from '@/hooks/useAudioReactive';
 
 interface BubbleControlsProps {
   colors: string[];
@@ -13,12 +14,15 @@ interface BubbleControlsProps {
   stampType: StampType;
   isPlaying: boolean;
   loopProgress: number;
+  isListening?: boolean;
+  audioData?: AudioData;
   onColorChange: (color: string) => void;
   onBrushSizeChange: (size: number) => void;
   onBrushModeChange: (mode: BrushMode) => void;
   onStampTypeChange: (stamp: StampType) => void;
   onTogglePlayback: () => void;
   onClear: () => void;
+  onToggleAudio?: () => void;
 }
 
 const BRUSH_MODES: { mode: BrushMode; icon: typeof Pencil; label: string }[] = [
@@ -36,12 +40,15 @@ export default function BubbleControls({
   stampType,
   isPlaying,
   loopProgress,
+  isListening = false,
+  audioData,
   onColorChange,
   onBrushSizeChange,
   onBrushModeChange,
   onStampTypeChange,
   onTogglePlayback,
   onClear,
+  onToggleAudio,
 }: BubbleControlsProps) {
   return (
     <div className="flex flex-col gap-3 w-full max-w-md">
@@ -155,6 +162,23 @@ export default function BubbleControls({
           )}
         </Button>
 
+        {/* Audio Toggle */}
+        {onToggleAudio && (
+          <Button
+            variant={isListening ? 'default' : 'ghost'}
+            size="icon"
+            onClick={onToggleAudio}
+            className={`shrink-0 transition-all ${isListening ? 'bg-red-500 hover:bg-red-600 text-white' : ''}`}
+            aria-label={isListening ? 'Désactiver micro' : 'Activer micro'}
+          >
+            {isListening ? (
+              <Mic className="w-5 h-5" />
+            ) : (
+              <MicOff className="w-5 h-5" />
+            )}
+          </Button>
+        )}
+
         {/* Clear */}
         <Button
           variant="ghost"
@@ -166,6 +190,19 @@ export default function BubbleControls({
           <Trash2 className="w-5 h-5" />
         </Button>
       </div>
+
+      {/* Audio Level Indicator */}
+      {isListening && audioData && (
+        <div className="flex gap-1 h-6 items-end justify-center">
+          {audioData.frequencies.slice(0, 16).map((freq, i) => (
+            <div
+              key={i}
+              className="w-2 bg-gradient-to-t from-primary to-accent rounded-sm transition-all duration-75"
+              style={{ height: `${Math.max(4, freq * 24)}px` }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Loop Progress Bar */}
       <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
