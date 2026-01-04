@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Trash2, Pencil, Sparkles, CircleDot, Stamp, Mic, MicOff, Eraser, Undo2, Redo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Play, Pause, Trash2, Pencil, Sparkles, CircleDot, Stamp, Mic, MicOff, Eraser, Undo2, Redo2, ZoomIn, ZoomOut, Download, Image } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { BrushMode } from '@/hooks/useLoopTime';
@@ -32,6 +32,8 @@ interface BubbleControlsProps {
   onUndo: () => void;
   onRedo: () => void;
   onToggleAudio?: () => void;
+  onExport: () => void;
+  onOpenGallery: () => void;
 }
 
 const BRUSH_MODES: { mode: BrushMode; icon: typeof Pencil; label: string }[] = [
@@ -68,6 +70,8 @@ export default function BubbleControls({
   onUndo,
   onRedo,
   onToggleAudio,
+  onExport,
+  onOpenGallery,
 }: BubbleControlsProps) {
   return (
     <div className="flex flex-col gap-3 w-full max-w-md">
@@ -263,6 +267,28 @@ export default function BubbleControls({
           aria-label="Effacer"
         >
           <Trash2 className="w-5 h-5" />
+        </Button>
+
+        <div className="w-px h-6 bg-border mx-1" />
+
+        {/* Export & Gallery */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onExport}
+          className="shrink-0"
+          aria-label="Exporter GIF"
+        >
+          <Download className="w-5 h-5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenGallery}
+          className="shrink-0"
+          aria-label="Galerie"
+        >
+          <Image className="w-5 h-5" />
         </Button>
       </div>
 

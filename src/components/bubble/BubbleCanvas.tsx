@@ -1,10 +1,15 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { useLoopTime, BrushMode } from '@/hooks/useLoopTime';
+import { useLoopTime, BrushMode, LoopStroke } from '@/hooks/useLoopTime';
 import { useCameraMotion } from '@/hooks/useCameraMotion';
 import { useAudioReactive } from '@/hooks/useAudioReactive';
+import { useGallery } from '@/hooks/useGallery';
+import { useGifExport } from '@/hooks/useGifExport';
 import { renderStroke, StampType } from './BrushRenderer';
 import BubbleControls from './BubbleControls';
 import Timeline from './Timeline';
+import ExportDialog from './ExportDialog';
+import GalleryDialog from './GalleryDialog';
+import { toast } from 'sonner';
 
 interface BubbleCanvasProps {
   loopDuration?: number;
@@ -57,12 +62,68 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   
   const { isListening, audioData, toggleListening } = useAudioReactive();
 
+  // Gallery & Export
+  const { items: galleryItems, saveItem, deleteItem, renameItem } = useGallery();
+  const { exportGif, isExporting, progress: exportProgress } = useGifExport();
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showGalleryDialog, setShowGalleryDialog] = useState(false);
+  const [gifDataUrl, setGifDataUrl] = useState<string | null>(null);
+  const [gifThumbnail, setGifThumbnail] = useState<string>('');
+  const [savedToGallery, setSavedToGallery] = useState(false);
+
   // Zoom handlers
   const handleZoomIn = () => setZoom(z => Math.min(z + 0.25, 5));
   const handleZoomOut = () => setZoom(z => Math.max(z - 0.25, 0.25));
   const handleResetView = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
+  };
+
+  // Export handler
+  const handleExport = async () => {
+    try {
+      const result = await exportGif({
+        width: dimensions.width,
+        height: dimensions.height,
+        radius: dimensions.radius,
+        loopDuration: actualLoopDuration,
+        strokes,
+        fps: 20,
+        quality: 10,
+      });
+      setGifDataUrl(result.gif);
+      setGifThumbnail(result.thumbnail);
+      setSavedToGallery(false);
+      toast.success('GIF généré avec succès !');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Erreur lors de la génération du GIF');
+    }
+  };
+
+  const handleSaveToGallery = () => {
+    if (gifDataUrl && gifThumbnail) {
+      saveItem(gifDataUrl, gifThumbnail, actualLoopDuration);
+      setSavedToGallery(true);
+      toast.success('Sauvegardé dans la galerie !');
+    }
+  };
+
+  const handleDownloadGif = () => {
+    if (gifDataUrl) {
+      const now = new Date();
+      const filename = `BubbleLoop_${now.toISOString().slice(0, 10)}_${now.toTimeString().slice(0, 5).replace(':', 'h')}.gif`;
+      const link = document.createElement('a');
+      link.href = gifDataUrl;
+      link.download = filename;
+      link.click();
+    }
+  };
+
+  const handleOpenExportDialog = () => {
+    setGifDataUrl(null);
+    setSavedToGallery(false);
+    setShowExportDialog(true);
   };
 
   // Calculate dimensions
@@ -361,6 +422,8 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         onUndo={undo}
         onRedo={redo}
         onToggleAudio={toggleListening}
+        onExport={handleOpenExportDialog}
+        onOpenGallery={() => setShowGalleryDialog(true)}
       />
 
       {/* Timeline Scrubber */}
@@ -417,6 +480,28 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         {isListening && ' • 🎤 Audio'}
         {zoom !== 1 && ` • 🔍 ${Math.round(zoom * 100)}%`}
       </p>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        isExporting={isExporting}
+        progress={exportProgress}
+        gifDataUrl={gifDataUrl}
+        onExport={handleExport}
+        onSaveToGallery={handleSaveToGallery}
+        onDownload={handleDownloadGif}
+        savedToGallery={savedToGallery}
+      />
+
+      {/* Gallery Dialog */}
+      <GalleryDialog
+        open={showGalleryDialog}
+        onOpenChange={setShowGalleryDialog}
+        items={galleryItems}
+        onDelete={deleteItem}
+        onRename={renameItem}
+      />
     </div>
   );
 }
