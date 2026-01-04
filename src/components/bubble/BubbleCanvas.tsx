@@ -4,6 +4,7 @@ import { useCameraMotion } from '@/hooks/useCameraMotion';
 import { useAudioReactive } from '@/hooks/useAudioReactive';
 import { renderStroke, StampType } from './BrushRenderer';
 import BubbleControls from './BubbleControls';
+import Timeline from './Timeline';
 
 interface BubbleCanvasProps {
   loopDuration?: number;
@@ -32,6 +33,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     currentStroke,
     loopProgress,
     isPlaying,
+    loopDuration: actualLoopDuration,
     canUndo,
     canRedo,
     startStroke,
@@ -42,6 +44,9 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     getVisibleStrokes,
     undo,
     redo,
+    seekTo,
+    stepForward,
+    stepBackward,
   } = useLoopTime({ loopDuration });
 
   const { offset } = useCameraMotion({ intensity: 0.4, enabled: true });
@@ -321,6 +326,17 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         onToggleAudio={toggleListening}
       />
 
+      {/* Timeline Scrubber */}
+      <Timeline
+        progress={loopProgress}
+        isPlaying={isPlaying}
+        loopDuration={actualLoopDuration}
+        onSeek={seekTo}
+        onTogglePlayback={togglePlayback}
+        onStepBack={stepBackward}
+        onStepForward={stepForward}
+      />
+
       {/* Canvas Container */}
       <div
         ref={containerRef}
@@ -354,14 +370,13 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
 
       {/* Mode indicator */}
       <p className="text-xs text-muted-foreground text-center">
-        {brushMode === 'pencil' && '✏️ Crayon classique'}
-        {brushMode === 'glow' && '✨ Trail lumineux avec halo'}
-        {brushMode === 'particles' && '🌟 Particules flottantes'}
-        {brushMode === 'stamp' && `🎨 Tampons ${stampType}`}
-        {brushMode === 'eraser' && '🧹 Gomme dure'}
-        {isListening && ' • 🎤 Audio réactif'}
+        {brushMode === 'pencil' && '✏️ Crayon'}
+        {brushMode === 'glow' && '✨ Glow'}
+        {brushMode === 'particles' && '🌟 Particules'}
+        {brushMode === 'stamp' && `🎨 ${stampType}`}
+        {brushMode === 'eraser' && '🧹 Gomme'}
+        {isListening && ' • 🎤 Audio'}
         {zoom !== 1 && ` • 🔍 ${Math.round(zoom * 100)}%`}
-        {' • '} Boucle de {loopDuration / 1000}s
       </p>
     </div>
   );
