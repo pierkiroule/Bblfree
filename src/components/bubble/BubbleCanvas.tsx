@@ -347,14 +347,20 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     const point = getCanvasPoint(e.clientX, e.clientY);
     if (!point) return;
 
-    setIsDrawing(true);
-    canvasRef.current?.setPointerCapture(e.pointerId);
-    
     // Eraser uses white color and full opacity
     const color = brushMode === 'eraser' ? '#ffffff' : brushColor;
     const opacity = brushMode === 'eraser' ? 1 : brushOpacity;
     startStroke(point.x, point.y, color, brushSize, opacity, brushMode, stampType);
-  }, [getCanvasPoint, startStroke, brushColor, brushSize, brushOpacity, brushMode, stampType]);
+
+    // For stamp mode, end stroke immediately (single stamp per click)
+    if (brushMode === 'stamp') {
+      endStroke();
+      return;
+    }
+
+    setIsDrawing(true);
+    canvasRef.current?.setPointerCapture(e.pointerId);
+  }, [getCanvasPoint, startStroke, endStroke, brushColor, brushSize, brushOpacity, brushMode, stampType]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (isPanning) {
