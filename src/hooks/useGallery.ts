@@ -9,27 +9,132 @@ export interface GalleryItem {
   duration: number;
 }
 
-const GALLERY_KEY = 'bubbleloop_gallery';
+const DB_NAME = 'bubbleloop_db';
+const DB_VERSION = 1;
+const STORE_NAME = 'gallery';
+
+// Open IndexedDB connection
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        store.createIndex('date', 'date', { unique: false });
+      }
+    };
+  });
+}
+
+// Get all items from IndexedDB
+async function getAllItems(): Promise<GalleryItem[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readonly');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.getAll();
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      // Sort by date descending (newest first)
+      const items = request.result.sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      resolve(items);
+    };
+    
+    transaction.oncomplete = () => db.close();
+  });
+}
+
+// Add item to IndexedDB
+async function addItem(item: GalleryItem): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.add(item);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+    
+    transaction.oncomplete = () => db.close();
+  });
+}
+
+// Update item in IndexedDB
+async function updateItem(item: GalleryItem): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.put(item);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+    
+    transaction.oncomplete = () => db.close();
+  });
+}
+
+// Delete item from IndexedDB
+async function removeItem(id: string): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.delete(id);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+    
+    transaction.oncomplete = () => db.close();
+  });
+}
+
+// Get storage estimate
+async function getStorageEstimate(): Promise<{ used: number; quota: number } | null> {
+  if ('storage' in navigator && 'estimate' in navigator.storage) {
+    const estimate = await navigator.storage.estimate();
+    return {
+      used: estimate.usage || 0,
+      quota: estimate.quota || 0,
+    };
+  }
+  return null;
+}
 
 export function useGallery() {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [storageInfo, setStorageInfo] = useState<{ used: number; quota: number } | null>(null);
 
-  // Load gallery from localStorage
+  // Load gallery from IndexedDB
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(GALLERY_KEY);
-      if (stored) {
-        setItems(JSON.parse(stored));
+    async function loadGallery() {
+      try {
+        const storedItems = await getAllItems();
+        setItems(storedItems);
+        
+        // Get storage info
+        const storage = await getStorageEstimate();
+        setStorageInfo(storage);
+      } catch (e) {
+        console.error('Failed to load gallery:', e);
       }
-    } catch (e) {
-      console.error('Failed to load gallery:', e);
+      setIsLoading(false);
     }
-    setIsLoading(false);
+    
+    loadGallery();
   }, []);
 
   // Save item to gallery
-  const saveItem = useCallback((dataUrl: string, thumbnail: string, duration: number) => {
+  const saveItem = useCallback(async (dataUrl: string, thumbnail: string, duration: number) => {
     const now = new Date();
     const title = `Loop ${now.toLocaleDateString('fr-FR')} ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
     
@@ -42,44 +147,47 @@ export function useGallery() {
       duration,
     };
 
-    setItems(prev => {
-      const updated = [newItem, ...prev];
-      try {
-        localStorage.setItem(GALLERY_KEY, JSON.stringify(updated));
-      } catch (e) {
-        console.error('Failed to save to gallery:', e);
-        // If storage is full, remove oldest items
-        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-          const trimmed = updated.slice(0, 10);
-          localStorage.setItem(GALLERY_KEY, JSON.stringify(trimmed));
-          return trimmed;
-        }
-      }
-      return updated;
-    });
+    try {
+      await addItem(newItem);
+      setItems(prev => [newItem, ...prev]);
+      
+      // Update storage info
+      const storage = await getStorageEstimate();
+      setStorageInfo(storage);
+    } catch (e) {
+      console.error('Failed to save to gallery:', e);
+    }
 
     return newItem;
   }, []);
 
   // Delete item from gallery
-  const deleteItem = useCallback((id: string) => {
-    setItems(prev => {
-      const updated = prev.filter(item => item.id !== id);
-      localStorage.setItem(GALLERY_KEY, JSON.stringify(updated));
-      return updated;
-    });
+  const deleteItem = useCallback(async (id: string) => {
+    try {
+      await removeItem(id);
+      setItems(prev => prev.filter(item => item.id !== id));
+      
+      // Update storage info
+      const storage = await getStorageEstimate();
+      setStorageInfo(storage);
+    } catch (e) {
+      console.error('Failed to delete from gallery:', e);
+    }
   }, []);
 
   // Rename item
-  const renameItem = useCallback((id: string, newTitle: string) => {
-    setItems(prev => {
-      const updated = prev.map(item => 
-        item.id === id ? { ...item, title: newTitle } : item
-      );
-      localStorage.setItem(GALLERY_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
+  const renameItem = useCallback(async (id: string, newTitle: string) => {
+    try {
+      const item = items.find(i => i.id === id);
+      if (item) {
+        const updatedItem = { ...item, title: newTitle };
+        await updateItem(updatedItem);
+        setItems(prev => prev.map(i => i.id === id ? updatedItem : i));
+      }
+    } catch (e) {
+      console.error('Failed to rename item:', e);
+    }
+  }, [items]);
 
   return {
     items,
@@ -87,5 +195,6 @@ export function useGallery() {
     saveItem,
     deleteItem,
     renameItem,
+    storageInfo,
   };
 }
