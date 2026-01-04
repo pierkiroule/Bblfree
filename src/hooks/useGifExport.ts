@@ -158,9 +158,11 @@ function getVisibleStrokesForProgress(strokes: LoopStroke[], progress: number): 
   }).filter(s => s.points.length > 0);
 }
 
-// Simple GIF encoder without workers
+// GIF encoder with Median Cut color quantization
 async function encodeGif(frames: string[], width: number, height: number, delay: number): Promise<string> {
-  const gif = new GifWriter(width, height);
+  // Collect all pixels from all frames for global palette
+  const allPixels: { r: number; g: number; b: number }[] = [];
+  const frameDataList: ImageData[] = [];
   
   for (let i = 0; i < frames.length; i++) {
     const img = await loadImage(frames[i]);
@@ -170,6 +172,28 @@ async function encodeGif(frames: string[], width: number, height: number, delay:
     const ctx = canvas.getContext('2d')!;
     ctx.drawImage(img, 0, 0);
     const imageData = ctx.getImageData(0, 0, width, height);
+    frameDataList.push(imageData);
+    
+    // Sample pixels for palette building (every 4th pixel to save memory)
+    const data = imageData.data;
+    for (let j = 0; j < data.length; j += 16) {
+      allPixels.push({
+        r: data[j],
+        g: data[j + 1],
+        b: data[j + 2]
+      });
+    }
+  }
+  
+  // Build optimal palette using Median Cut
+  const palette = medianCutQuantize(allPixels, 256);
+  
+  // Build color lookup cache for faster quantization
+  const colorCache = new Map<number, number>();
+  
+  const gif = new GifWriter(width, height, palette, colorCache);
+  
+  for (const imageData of frameDataList) {
     gif.addFrame(imageData.data, delay);
   }
   
@@ -185,15 +209,141 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-// Minimal GIF encoder with color support
+// Median Cut algorithm for optimal color quantization
+function medianCutQuantize(pixels: { r: number; g: number; b: number }[], numColors: number): { r: number; g: number; b: number }[] {
+  if (pixels.length === 0) {
+    // Return grayscale palette if no pixels
+    return Array.from({ length: numColors }, (_, i) => {
+      const v = Math.round((i / numColors) * 255);
+      return { r: v, g: v, b: v };
+    });
+  }
+
+  interface ColorBox {
+    pixels: { r: number; g: number; b: number }[];
+    rMin: number; rMax: number;
+    gMin: number; gMax: number;
+    bMin: number; bMax: number;
+  }
+
+  function createBox(pixels: { r: number; g: number; b: number }[]): ColorBox {
+    let rMin = 255, rMax = 0;
+    let gMin = 255, gMax = 0;
+    let bMin = 255, bMax = 0;
+    
+    for (const p of pixels) {
+      rMin = Math.min(rMin, p.r); rMax = Math.max(rMax, p.r);
+      gMin = Math.min(gMin, p.g); gMax = Math.max(gMax, p.g);
+      bMin = Math.min(bMin, p.b); bMax = Math.max(bMax, p.b);
+    }
+    
+    return { pixels, rMin, rMax, gMin, gMax, bMin, bMax };
+  }
+
+  function splitBox(box: ColorBox): [ColorBox, ColorBox] {
+    const rRange = box.rMax - box.rMin;
+    const gRange = box.gMax - box.gMin;
+    const bRange = box.bMax - box.bMin;
+    
+    // Sort by the channel with largest range
+    let channel: 'r' | 'g' | 'b';
+    if (rRange >= gRange && rRange >= bRange) {
+      channel = 'r';
+    } else if (gRange >= rRange && gRange >= bRange) {
+      channel = 'g';
+    } else {
+      channel = 'b';
+    }
+    
+    box.pixels.sort((a, b) => a[channel] - b[channel]);
+    
+    const mid = Math.floor(box.pixels.length / 2);
+    return [
+      createBox(box.pixels.slice(0, mid)),
+      createBox(box.pixels.slice(mid))
+    ];
+  }
+
+  function getAverageColor(box: ColorBox): { r: number; g: number; b: number } {
+    if (box.pixels.length === 0) return { r: 0, g: 0, b: 0 };
+    
+    let rSum = 0, gSum = 0, bSum = 0;
+    for (const p of box.pixels) {
+      rSum += p.r;
+      gSum += p.g;
+      bSum += p.b;
+    }
+    
+    const len = box.pixels.length;
+    return {
+      r: Math.round(rSum / len),
+      g: Math.round(gSum / len),
+      b: Math.round(bSum / len)
+    };
+  }
+
+  // Start with one box containing all pixels
+  let boxes: ColorBox[] = [createBox(pixels)];
+  
+  // Split boxes until we have enough colors
+  while (boxes.length < numColors) {
+    // Find box with most pixels and largest range
+    let bestIndex = 0;
+    let bestScore = 0;
+    
+    for (let i = 0; i < boxes.length; i++) {
+      const box = boxes[i];
+      if (box.pixels.length < 2) continue;
+      
+      const range = Math.max(
+        box.rMax - box.rMin,
+        box.gMax - box.gMin,
+        box.bMax - box.bMin
+      );
+      const score = box.pixels.length * range;
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = i;
+      }
+    }
+    
+    if (bestScore === 0) break;
+    
+    const [box1, box2] = splitBox(boxes[bestIndex]);
+    boxes.splice(bestIndex, 1, box1, box2);
+  }
+  
+  // Get average color from each box
+  const palette = boxes.map(getAverageColor);
+  
+  // Fill remaining slots if needed
+  while (palette.length < numColors) {
+    const gray = Math.round((palette.length / numColors) * 255);
+    palette.push({ r: gray, g: gray, b: gray });
+  }
+  
+  return palette.slice(0, numColors);
+}
+
+// GIF encoder with color support
 class GifWriter {
   private width: number;
   private height: number;
   private frames: { data: Uint8ClampedArray; delay: number }[] = [];
+  private palette: { r: number; g: number; b: number }[];
+  private colorCache: Map<number, number>;
 
-  constructor(width: number, height: number) {
+  constructor(
+    width: number, 
+    height: number, 
+    palette: { r: number; g: number; b: number }[],
+    colorCache: Map<number, number>
+  ) {
     this.width = width;
     this.height = height;
+    this.palette = palette;
+    this.colorCache = colorCache;
   }
 
   addFrame(pixels: Uint8ClampedArray, delay: number) {
@@ -202,9 +352,6 @@ class GifWriter {
 
   finish(): string {
     const bytes: number[] = [];
-    
-    // Build global color palette from first frame
-    const palette = this.buildPalette(this.frames[0]?.data || new Uint8ClampedArray(0));
     
     // GIF Header
     this.writeString(bytes, 'GIF89a');
@@ -218,10 +365,10 @@ class GifWriter {
     
     // Global Color Table (256 colors)
     for (let i = 0; i < 256; i++) {
-      if (palette[i]) {
-        bytes.push(palette[i].r, palette[i].g, palette[i].b);
+      if (this.palette[i]) {
+        bytes.push(this.palette[i].r, this.palette[i].g, this.palette[i].b);
       } else {
-        bytes.push(i, i, i);
+        bytes.push(0, 0, 0);
       }
     }
     
@@ -236,7 +383,7 @@ class GifWriter {
     for (const frame of this.frames) {
       // Graphics Control Extension
       bytes.push(0x21, 0xF9, 0x04);
-      bytes.push(0x00); // Disposal method
+      bytes.push(0x04); // Disposal method: restore to background
       this.writeShort(bytes, Math.round(frame.delay / 10)); // Delay in centiseconds
       bytes.push(0x00); // Transparent color index
       bytes.push(0x00); // Block terminator
@@ -250,7 +397,7 @@ class GifWriter {
       bytes.push(0x00); // No local color table
       
       // Image Data with LZW encoding
-      const pixels = this.quantizeFrame(frame.data, palette);
+      const pixels = this.quantizeFrame(frame.data);
       const lzw = this.lzwEncode(pixels);
       bytes.push(8); // LZW minimum code size
       
@@ -278,41 +425,6 @@ class GifWriter {
     return 'data:image/gif;base64,' + btoa(binary);
   }
 
-  private buildPalette(rgba: Uint8ClampedArray): { r: number; g: number; b: number }[] {
-    const colorCounts = new Map<string, { r: number; g: number; b: number; count: number }>();
-    
-    // Sample colors from the image
-    const pixelCount = rgba.length / 4;
-    const step = Math.max(1, Math.floor(pixelCount / 10000));
-    
-    for (let i = 0; i < pixelCount; i += step) {
-      const r = rgba[i * 4] & 0xF8;     // Reduce to 5 bits
-      const g = rgba[i * 4 + 1] & 0xF8;
-      const b = rgba[i * 4 + 2] & 0xF8;
-      const key = `${r},${g},${b}`;
-      
-      const existing = colorCounts.get(key);
-      if (existing) {
-        existing.count++;
-      } else {
-        colorCounts.set(key, { r, g, b, count: 1 });
-      }
-    }
-    
-    // Sort by frequency and take top 256
-    const sortedColors = Array.from(colorCounts.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 256);
-    
-    // Fill remaining slots with grayscale
-    while (sortedColors.length < 256) {
-      const gray = sortedColors.length;
-      sortedColors.push({ r: gray, g: gray, b: gray, count: 0 });
-    }
-    
-    return sortedColors;
-  }
-
   private writeString(bytes: number[], str: string) {
     for (let i = 0; i < str.length; i++) {
       bytes.push(str.charCodeAt(i));
@@ -324,7 +436,7 @@ class GifWriter {
     bytes.push((value >> 8) & 0xFF);
   }
 
-  private quantizeFrame(rgba: Uint8ClampedArray, palette: { r: number; g: number; b: number }[]): Uint8Array {
+  private quantizeFrame(rgba: Uint8ClampedArray): Uint8Array {
     const pixels = new Uint8Array(this.width * this.height);
     
     for (let i = 0; i < pixels.length; i++) {
@@ -332,21 +444,31 @@ class GifWriter {
       const g = rgba[i * 4 + 1];
       const b = rgba[i * 4 + 2];
       
-      // Find closest color in palette
-      let bestIndex = 0;
-      let bestDist = Infinity;
+      // Use cache for faster lookup
+      const key = (r << 16) | (g << 8) | b;
+      let bestIndex = this.colorCache.get(key);
       
-      for (let j = 0; j < palette.length; j++) {
-        const dr = r - palette[j].r;
-        const dg = g - palette[j].g;
-        const db = b - palette[j].b;
-        const dist = dr * dr + dg * dg + db * db;
+      if (bestIndex === undefined) {
+        // Find closest color in palette using weighted distance
+        bestIndex = 0;
+        let bestDist = Infinity;
         
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestIndex = j;
-          if (dist === 0) break;
+        for (let j = 0; j < this.palette.length; j++) {
+          const p = this.palette[j];
+          // Weighted distance (human eye is more sensitive to green)
+          const dr = r - p.r;
+          const dg = g - p.g;
+          const db = b - p.b;
+          const dist = dr * dr * 0.299 + dg * dg * 0.587 + db * db * 0.114;
+          
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestIndex = j;
+            if (dist === 0) break;
+          }
         }
+        
+        this.colorCache.set(key, bestIndex);
       }
       
       pixels[i] = bestIndex;
@@ -386,6 +508,12 @@ class GifWriter {
     };
     
     writeBits(clearCode, codeSize);
+    
+    if (pixels.length === 0) {
+      writeBits(eoiCode, codeSize);
+      if (bitCount > 0) output.push(bitBuffer & 0xFF);
+      return output;
+    }
     
     let current = String(pixels[0]);
     
