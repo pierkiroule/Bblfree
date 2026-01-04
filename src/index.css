@@ -1,105 +1,196 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    /* BubbleLoop Design System - Indigo/Slate palette */
+    --primary: 239 84% 67%;
+    --primary-dark: 239 76% 50%;
+    --primary-foreground: 0 0% 100%;
+    
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 222 47% 11%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --popover-foreground: 222 47% 11%;
+    
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 239 84% 67%;
+    
+    --radius: 1rem;
+    
+    /* BubbleLoop custom tokens */
+    --slate-50: 210 40% 98%;
+    --slate-100: 210 40% 96%;
+    --slate-200: 214 32% 91%;
+    --slate-300: 213 27% 84%;
+    --slate-400: 215 20% 65%;
+    --slate-500: 215 16% 47%;
+    --slate-700: 215 25% 27%;
+    --slate-800: 217 33% 17%;
+    --slate-900: 222 47% 11%;
+    
+    --focus-ring: 226 76% 80%;
+    --focus-glow: 239 84% 67% / 0.25;
+    
+    --glass-bg: 0 0% 100% / 0.85;
+    --glass-border: 0 0% 100% / 0.7;
+    --glass-blur: 14px;
+    
+    --gradient-bubble: linear-gradient(180deg, hsl(210 40% 96%) 0%, hsl(214 32% 88%) 100%);
+    --shadow-soft: 0 10px 25px hsl(0 0% 0% / 0.08);
+    --shadow-primary: 0 25px 45px hsl(239 84% 67% / 0.25);
+    --shadow-elevated: 0 24px 70px hsl(249 53% 59% / 0.35), 0 4px 20px hsl(222 47% 11% / 0.08);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 222 47% 6%;
     --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
+    
+    --card: 222 47% 8%;
     --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
+    
+    --popover: 222 47% 8%;
     --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
+    
+    --primary: 239 84% 67%;
+    --primary-dark: 239 76% 55%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
+    
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    
+    --accent: 217 33% 17%;
     --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
+    
+    --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 239 84% 67%;
+    
+    --glass-bg: 222 47% 8% / 0.85;
+    --glass-border: 0 0% 100% / 0.1;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
   }
 
   body {
     @apply bg-background text-foreground;
+    min-height: 100vh;
+    overflow-x: hidden;
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--glass-border));
+    border-radius: var(--radius);
+  }
+
+  .badge {
+    display: inline-block;
+    background: hsl(var(--slate-100));
+    color: hsl(var(--slate-500));
+    padding: 0.35rem 0.85rem;
+    border-radius: 9999px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+}
+
+@layer utilities {
+  @keyframes rise {
+    0% { transform: translateY(0) scale(1); opacity: 0; }
+    10% { opacity: 0.8; }
+    90% { opacity: 0.8; }
+    100% { transform: translateY(-130vh) scale(1.3); opacity: 0; }
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes cycle {
+    0% { stroke-dashoffset: 490; }
+    42% { stroke-dashoffset: 0; }
+    56% { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: 490; }
+  }
+
+  @keyframes popOut {
+    0% { opacity: 0; transform: translateY(0) scale(0.95); }
+    58% { opacity: 0; transform: translateY(0) scale(0.95); }
+    63% { opacity: 1; transform: translateY(-6px) scale(1); }
+    85% { opacity: 0.55; transform: translateY(-30px) scale(1.02); }
+    100% { opacity: 0; transform: translateY(-44px) scale(1.04); }
+  }
+
+  @keyframes corePulse {
+    0%, 100% { transform: scale(1); opacity: 0.12; }
+    50% { transform: scale(1.02); opacity: 0.18; }
+  }
+
+  .animate-rise {
+    animation: rise var(--duration, 10s) infinite linear;
+    animation-delay: var(--delay, 0s);
+  }
+
+  .animate-pulse-logo {
+    animation: pulse 2.6s infinite;
+  }
+
+  .animate-cycle {
+    animation: cycle 15s cubic-bezier(.45,0,.55,1) infinite;
+  }
+
+  .animate-pop-out {
+    animation: popOut 15s ease-out infinite;
+  }
+
+  .animate-core-pulse {
+    animation: corePulse 15s ease-in-out infinite;
   }
 }
