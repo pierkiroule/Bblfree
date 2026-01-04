@@ -159,13 +159,24 @@ function drawStampStroke(
   offsetY: number,
   stampType: StampType
 ) {
+  if (points.length === 0) return;
+
   ctx.save();
   ctx.fillStyle = color;
-  ctx.font = `${width * 2}px sans-serif`;
+  ctx.font = `${width * 3}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   const stamp = STAMPS[stampType] || STAMPS.star;
+  
+  // For single point (single click), just draw one stamp
+  if (points.length === 1) {
+    const x = points[0].x + centerX + offsetX;
+    const y = points[0].y + centerY + offsetY;
+    ctx.fillText(stamp, x, y);
+    ctx.restore();
+    return;
+  }
   
   // Only draw stamp every few points to avoid overcrowding
   const spacing = Math.max(1, Math.floor(points.length / 20));
