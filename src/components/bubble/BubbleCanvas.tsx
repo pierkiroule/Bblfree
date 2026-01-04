@@ -5,8 +5,10 @@ import { useAudioReactive } from '@/hooks/useAudioReactive';
 import { useGallery } from '@/hooks/useGallery';
 import { useGifExport } from '@/hooks/useGifExport';
 import { renderStroke, StampType } from './BrushRenderer';
-import BubbleControls from './BubbleControls';
-import Timeline from './Timeline';
+import BrushArc from './BrushArc';
+import ColorArc from './ColorArc';
+import ColorPaletteModal from './ColorPaletteModal';
+import BottomControls from './BottomControls';
 import ExportDialog from './ExportDialog';
 import GalleryDialog from './GalleryDialog';
 import { toast } from 'sonner';
@@ -15,10 +17,8 @@ interface BubbleCanvasProps {
   loopDuration?: number;
 }
 
-const COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e',
-  '#f97316', '#eab308', '#22c55e', '#14b8a6',
-  '#06b6d4', '#3b82f6', '#ffffff', '#1e1b4b',
+const DEFAULT_COLORS = [
+  '#6366f1', '#ec4899', '#f97316', '#22c55e', '#06b6d4', '#8b5cf6',
 ];
 
 export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps) {
@@ -26,6 +26,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0, radius: 0 });
   const [isDrawing, setIsDrawing] = useState(false);
+  const [paletteColors, setPaletteColors] = useState<string[]>(DEFAULT_COLORS);
   const [brushColor, setBrushColor] = useState('#6366f1');
   const [brushSize, setBrushSize] = useState(8);
   const [brushOpacity, setBrushOpacity] = useState(1);
@@ -36,6 +37,11 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   const [isPanning, setIsPanning] = useState(false);
   const lastPanPoint = useRef({ x: 0, y: 0 });
   const timeRef = useRef(0);
+
+  // Modals
+  const [showPaletteModal, setShowPaletteModal] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showGalleryDialog, setShowGalleryDialog] = useState(false);
 
   const {
     strokes,
@@ -59,14 +65,11 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   } = useLoopTime({ loopDuration });
 
   const { offset } = useCameraMotion({ intensity: 0.4, enabled: true });
-  
   const { isListening, audioData, toggleListening } = useAudioReactive();
 
   // Gallery & Export
   const { items: galleryItems, saveItem, deleteItem, renameItem } = useGallery();
   const { exportGif, isExporting, progress: exportProgress } = useGifExport();
-  const [showExportDialog, setShowExportDialog] = useState(false);
-  const [showGalleryDialog, setShowGalleryDialog] = useState(false);
   const [gifDataUrl, setGifDataUrl] = useState<string | null>(null);
   const [gifThumbnail, setGifThumbnail] = useState<string>('');
   const [savedToGallery, setSavedToGallery] = useState(false);
@@ -74,10 +77,6 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   // Zoom handlers
   const handleZoomIn = () => setZoom(z => Math.min(z + 0.25, 5));
   const handleZoomOut = () => setZoom(z => Math.max(z - 0.25, 0.25));
-  const handleResetView = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  };
 
   // Export handler
   const handleExport = async () => {
@@ -393,40 +392,76 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   }, []);
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full">
-      {/* Controls */}
-      <BubbleControls
-        colors={COLORS}
-        activeColor={brushColor}
-        brushSize={brushSize}
-        brushOpacity={brushOpacity}
-        brushMode={brushMode}
-        stampType={stampType}
-        isPlaying={isPlaying}
-        loopProgress={loopProgress}
-        zoom={zoom}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        isListening={isListening}
-        audioData={audioData}
-        onColorChange={setBrushColor}
-        onBrushSizeChange={setBrushSize}
-        onBrushOpacityChange={setBrushOpacity}
-        onBrushModeChange={setBrushMode}
-        onStampTypeChange={setStampType}
-        onTogglePlayback={togglePlayback}
-        onClear={clearStrokes}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onUndo={undo}
-        onRedo={redo}
-        onToggleAudio={toggleListening}
-        onExport={handleOpenExportDialog}
-        onOpenGallery={() => setShowGalleryDialog(true)}
-      />
+    <div className="flex flex-col items-center gap-6 w-full max-w-3xl mx-auto px-4">
+      {/* Canvas area with arc controls */}
+      <div 
+        className="relative"
+        style={{ 
+          width: dimensions.width || '100%',
+          paddingTop: 80,
+          paddingRight: 80,
+          paddingBottom: 20,
+        }}
+      >
+        {/* Canvas Container */}
+        <div
+          ref={containerRef}
+          className="relative w-full aspect-square max-w-[500px]"
+        >
+          {/* Brush Arc (top) */}
+          {dimensions.width > 0 && (
+            <BrushArc
+              brushMode={brushMode}
+              stampType={stampType}
+              activeColor={brushColor}
+              onBrushModeChange={setBrushMode}
+              onStampTypeChange={setStampType}
+              canvasSize={dimensions.width}
+            />
+          )}
 
-      {/* Timeline Scrubber */}
-      <Timeline
+          {/* Color Arc (right) */}
+          {dimensions.width > 0 && (
+            <ColorArc
+              colors={paletteColors}
+              activeColor={brushColor}
+              onColorChange={setBrushColor}
+              onOpenPalette={() => setShowPaletteModal(true)}
+              canvasSize={dimensions.width}
+            />
+          )}
+
+          <canvas
+            ref={canvasRef}
+            width={dimensions.width}
+            height={dimensions.height}
+            className="touch-none"
+            style={{
+              width: dimensions.width || '100%',
+              height: dimensions.height || '100%',
+              cursor: isPanning ? 'grabbing' : 'crosshair',
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+            onWheel={handleWheel}
+            onPointerCancel={handlePointerUp}
+          />
+
+          {/* Floating effect overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none rounded-full"
+            style={{
+              background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%)',
+              transform: `translate(${offset.x * 0.5}px, ${offset.y * 0.5}px)`,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Bottom Controls */}
+      <BottomControls
         progress={loopProgress}
         isPlaying={isPlaying}
         loopDuration={actualLoopDuration}
@@ -434,51 +469,32 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         onTogglePlayback={togglePlayback}
         onStepBack={stepBackward}
         onStepForward={stepForward}
+        zoom={zoom}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
+        onClear={clearStrokes}
+        onExport={handleOpenExportDialog}
+        onOpenGallery={() => setShowGalleryDialog(true)}
+        isListening={isListening}
+        audioData={audioData}
+        onToggleAudio={toggleListening}
+        brushSize={brushSize}
+        brushOpacity={brushOpacity}
+        onBrushSizeChange={setBrushSize}
+        onBrushOpacityChange={setBrushOpacity}
       />
 
-      {/* Canvas Container */}
-      <div
-        ref={containerRef}
-        className="relative w-full aspect-square max-w-[600px]"
-      >
-        <canvas
-          ref={canvasRef}
-          width={dimensions.width}
-          height={dimensions.height}
-          className="touch-none"
-          style={{
-            width: dimensions.width || '100%',
-            height: dimensions.height || '100%',
-            cursor: isPanning ? 'grabbing' : 'crosshair',
-          }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
-          onWheel={handleWheel}
-          onPointerCancel={handlePointerUp}
-        />
-
-        {/* Floating effect overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none rounded-full"
-          style={{
-            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%)',
-            transform: `translate(${offset.x * 0.5}px, ${offset.y * 0.5}px)`,
-          }}
-        />
-      </div>
-
-      {/* Mode indicator */}
-      <p className="text-xs text-muted-foreground text-center">
-        {brushMode === 'pencil' && '✏️ Crayon'}
-        {brushMode === 'glow' && '✨ Glow'}
-        {brushMode === 'particles' && '🌟 Particules'}
-        {brushMode === 'stamp' && `🎨 ${stampType}`}
-        {brushMode === 'eraser' && '🧹 Gomme'}
-        {isListening && ' • 🎤 Audio'}
-        {zoom !== 1 && ` • 🔍 ${Math.round(zoom * 100)}%`}
-      </p>
+      {/* Color Palette Modal */}
+      <ColorPaletteModal
+        open={showPaletteModal}
+        onOpenChange={setShowPaletteModal}
+        colors={paletteColors}
+        onColorsChange={setPaletteColors}
+      />
 
       {/* Export Dialog */}
       <ExportDialog
