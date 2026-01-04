@@ -27,6 +27,9 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   const [brushMode, setBrushMode] = useState<BrushMode>('pencil');
   const [stampType, setStampType] = useState<StampType>('star');
   const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const lastPanPoint = useRef({ x: 0, y: 0 });
   const timeRef = useRef(0);
 
   const {
@@ -55,8 +58,12 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   const { isListening, audioData, toggleListening } = useAudioReactive();
 
   // Zoom handlers
-  const handleZoomIn = () => setZoom(z => Math.min(z + 0.25, 3));
-  const handleZoomOut = () => setZoom(z => Math.max(z - 0.25, 0.5));
+  const handleZoomIn = () => setZoom(z => Math.min(z + 0.25, 5));
+  const handleZoomOut = () => setZoom(z => Math.max(z - 0.25, 0.25));
+  const handleResetView = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
 
   // Calculate dimensions
   useEffect(() => {
@@ -79,20 +86,26 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
-  // Get center-relative coordinates
-  const getCanvasPoint = useCallback((clientX: number, clientY: number) => {
+  // Get center-relative coordinates with zoom and pan transform
+  const getCanvasPoint = useCallback((clientX: number, clientY: number, checkBounds = true) => {
     if (!canvasRef.current) return null;
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = clientX - rect.left - dimensions.width / 2;
-    const y = clientY - rect.top - dimensions.height / 2;
+    const screenX = clientX - rect.left - dimensions.width / 2;
+    const screenY = clientY - rect.top - dimensions.height / 2;
 
-    // Check if point is inside the circle
-    const dist = Math.sqrt(x * x + y * y);
-    if (dist > dimensions.radius) return null;
+    // Check if point is inside the circle (in screen space)
+    if (checkBounds) {
+      const dist = Math.sqrt(screenX * screenX + screenY * screenY);
+      if (dist > dimensions.radius) return null;
+    }
 
-    return { x, y };
-  }, [dimensions]);
+    // Transform to canvas space (inverse of zoom and pan)
+    const canvasX = (screenX - pan.x) / zoom;
+    const canvasY = (screenY - pan.y) / zoom;
+
+    return { x: canvasX, y: canvasY, screenX, screenY };
+  }, [dimensions, zoom, pan]);
 
   // Main render loop
   useEffect(() => {
@@ -115,12 +128,6 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
 
       // Clear canvas
       ctx.clearRect(0, 0, dimensions.width, dimensions.height);
-
-      // Apply zoom
-      ctx.save();
-      ctx.translate(dimensions.width / 2, dimensions.height / 2);
-      ctx.scale(zoom, zoom);
-      ctx.translate(-dimensions.width / 2, -dimensions.height / 2);
 
       // Draw background circle with audio-reactive gradient
       ctx.save();
@@ -149,6 +156,12 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       ctx.fillStyle = bgGradient;
       ctx.fill();
       ctx.clip();
+
+      // Apply zoom and pan transform for content only
+      ctx.save();
+      ctx.translate(dimensions.width / 2 + pan.x, dimensions.height / 2 + pan.y);
+      ctx.scale(zoom, zoom);
+      ctx.translate(-dimensions.width / 2, -dimensions.height / 2);
 
       // Draw visible strokes with camera offset and audio reactivity
       const visibleStrokes = getVisibleStrokes(loopProgress);
@@ -186,6 +199,9 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         );
       }
 
+      // Close content transform (zoom/pan)
+      ctx.restore();
+      // Close background clip
       ctx.restore();
 
       // Draw border glow with audio reactivity
@@ -251,27 +267,26 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       ctx.stroke();
       ctx.restore();
 
-      // Close zoom transform
-      ctx.restore();
-
       animationId = requestAnimationFrame(render);
     };
 
     render();
 
     return () => cancelAnimationFrame(animationId);
-  }, [dimensions, strokes, currentStroke, loopProgress, offset, getVisibleStrokes, isListening, audioData, zoom]);
+  }, [dimensions, strokes, currentStroke, loopProgress, offset, getVisibleStrokes, isListening, audioData, zoom, pan]);
 
   // Pointer handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    // Middle mouse or Alt+click for panning
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+      setIsPanning(true);
+      lastPanPoint.current = { x: e.clientX, y: e.clientY };
+      canvasRef.current?.setPointerCapture(e.pointerId);
+      return;
+    }
+
     const point = getCanvasPoint(e.clientX, e.clientY);
     if (!point) return;
-
-    // Apply inverse zoom to coordinates
-    const zoomedPoint = {
-      x: point.x / zoom,
-      y: point.y / zoom,
-    };
 
     setIsDrawing(true);
     canvasRef.current?.setPointerCapture(e.pointerId);
@@ -279,25 +294,43 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     // Eraser uses white color and full opacity
     const color = brushMode === 'eraser' ? '#ffffff' : brushColor;
     const opacity = brushMode === 'eraser' ? 1 : brushOpacity;
-    startStroke(zoomedPoint.x, zoomedPoint.y, color, brushSize, opacity, brushMode, stampType);
-  }, [getCanvasPoint, startStroke, brushColor, brushSize, brushOpacity, brushMode, stampType, zoom]);
+    startStroke(point.x, point.y, color, brushSize, opacity, brushMode, stampType);
+  }, [getCanvasPoint, startStroke, brushColor, brushSize, brushOpacity, brushMode, stampType]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (isPanning) {
+      const dx = e.clientX - lastPanPoint.current.x;
+      const dy = e.clientY - lastPanPoint.current.y;
+      setPan(p => ({ x: p.x + dx, y: p.y + dy }));
+      lastPanPoint.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
+
     if (!isDrawing) return;
 
-    const point = getCanvasPoint(e.clientX, e.clientY);
+    const point = getCanvasPoint(e.clientX, e.clientY, false);
     if (point) {
-      // Apply inverse zoom to coordinates
-      addPoint(point.x / zoom, point.y / zoom);
+      addPoint(point.x, point.y);
     }
-  }, [isDrawing, getCanvasPoint, addPoint, zoom]);
+  }, [isDrawing, isPanning, getCanvasPoint, addPoint]);
 
   const handlePointerUp = useCallback(() => {
+    if (isPanning) {
+      setIsPanning(false);
+      return;
+    }
     if (isDrawing) {
       setIsDrawing(false);
       endStroke();
     }
-  }, [isDrawing, endStroke]);
+  }, [isDrawing, isPanning, endStroke]);
+
+  // Mouse wheel for zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setZoom(z => Math.max(0.25, Math.min(5, z + delta)));
+  }, []);
 
   return (
     <div className="flex flex-col items-center gap-4 w-full">
@@ -350,15 +383,17 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           ref={canvasRef}
           width={dimensions.width}
           height={dimensions.height}
-          className="touch-none cursor-crosshair"
+          className="touch-none"
           style={{
             width: dimensions.width || '100%',
             height: dimensions.height || '100%',
+            cursor: isPanning ? 'grabbing' : 'crosshair',
           }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          onWheel={handleWheel}
           onPointerCancel={handlePointerUp}
         />
 
