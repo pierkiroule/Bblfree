@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
+export type BrushMode = 'pencil' | 'glow' | 'particles' | 'stamp';
+
 export interface LoopPoint {
   x: number;
   y: number;
@@ -11,6 +13,8 @@ export interface LoopStroke {
   points: LoopPoint[];
   color: string;
   width: number;
+  mode: BrushMode;
+  stampType?: string;
 }
 
 interface UseLoopTimeOptions {
@@ -36,12 +40,21 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
   }, [loopDuration]);
 
   // Start a new stroke
-  const startStroke = useCallback((x: number, y: number, color: string, width: number) => {
+  const startStroke = useCallback((
+    x: number, 
+    y: number, 
+    color: string, 
+    width: number, 
+    mode: BrushMode = 'pencil',
+    stampType?: string
+  ) => {
     const t = getNormalizedTime();
     setCurrentStroke({
       points: [{ x, y, t }],
       color,
       width,
+      mode,
+      stampType,
     });
   }, [getNormalizedTime]);
 
@@ -61,7 +74,7 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
 
   // End current stroke
   const endStroke = useCallback(() => {
-    if (currentStroke && currentStroke.points.length > 1) {
+    if (currentStroke && currentStroke.points.length > 0) {
       setStrokes(prev => [...prev, currentStroke]);
     }
     setCurrentStroke(null);
