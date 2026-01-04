@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Trash2, Pencil, Sparkles, CircleDot, Stamp, Mic, MicOff } from 'lucide-react';
+import { Play, Pause, Trash2, Pencil, Sparkles, CircleDot, Stamp, Mic, MicOff, Eraser, Undo2, Redo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { BrushMode } from '@/hooks/useLoopTime';
@@ -14,6 +14,9 @@ interface BubbleControlsProps {
   stampType: StampType;
   isPlaying: boolean;
   loopProgress: number;
+  zoom: number;
+  canUndo: boolean;
+  canRedo: boolean;
   isListening?: boolean;
   audioData?: AudioData;
   onColorChange: (color: string) => void;
@@ -22,6 +25,10 @@ interface BubbleControlsProps {
   onStampTypeChange: (stamp: StampType) => void;
   onTogglePlayback: () => void;
   onClear: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
   onToggleAudio?: () => void;
 }
 
@@ -30,6 +37,7 @@ const BRUSH_MODES: { mode: BrushMode; icon: typeof Pencil; label: string }[] = [
   { mode: 'glow', icon: Sparkles, label: 'Glow' },
   { mode: 'particles', icon: CircleDot, label: 'Particules' },
   { mode: 'stamp', icon: Stamp, label: 'Tampons' },
+  { mode: 'eraser', icon: Eraser, label: 'Gomme' },
 ];
 
 export default function BubbleControls({
@@ -40,6 +48,9 @@ export default function BubbleControls({
   stampType,
   isPlaying,
   loopProgress,
+  zoom,
+  canUndo,
+  canRedo,
   isListening = false,
   audioData,
   onColorChange,
@@ -48,6 +59,10 @@ export default function BubbleControls({
   onStampTypeChange,
   onTogglePlayback,
   onClear,
+  onZoomIn,
+  onZoomOut,
+  onUndo,
+  onRedo,
   onToggleAudio,
 }: BubbleControlsProps) {
   return (
@@ -118,16 +133,16 @@ export default function BubbleControls({
       </div>
 
       {/* Brush Size & Controls */}
-      <div className="flex items-center gap-4 glass-panel px-4 py-3 rounded-xl">
+      <div className="flex items-center gap-3 glass-panel px-4 py-3 rounded-xl flex-wrap">
         {/* Brush Size */}
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex items-center gap-3 flex-1 min-w-[150px]">
           <div
             className="rounded-full shrink-0 flex items-center justify-center"
             style={{
               width: Math.max(12, brushSize),
               height: Math.max(12, brushSize),
-              backgroundColor: brushMode === 'glow' ? 'transparent' : activeColor,
-              boxShadow: brushMode === 'glow' ? `0 0 ${brushSize}px ${activeColor}` : 'none',
+              backgroundColor: brushMode === 'eraser' ? '#ffffff' : (brushMode === 'glow' ? 'transparent' : activeColor),
+              boxShadow: brushMode === 'glow' ? `0 0 ${brushSize}px ${activeColor}` : (brushMode === 'eraser' ? 'inset 0 0 0 2px hsl(var(--muted))' : 'none'),
               border: brushMode === 'glow' ? `2px solid ${activeColor}` : 'none',
             }}
           >
@@ -145,6 +160,55 @@ export default function BubbleControls({
             onValueChange={(v) => onBrushSizeChange(v[0])}
             className="flex-1"
           />
+        </div>
+
+        {/* Undo/Redo */}
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onUndo}
+            disabled={!canUndo}
+            className="shrink-0"
+            aria-label="Annuler"
+          >
+            <Undo2 className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onRedo}
+            disabled={!canRedo}
+            className="shrink-0"
+            aria-label="Rétablir"
+          >
+            <Redo2 className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Zoom */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onZoomOut}
+            disabled={zoom <= 0.5}
+            className="shrink-0"
+            aria-label="Zoom arrière"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </Button>
+          <span className="text-xs text-muted-foreground w-10 text-center">{Math.round(zoom * 100)}%</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onZoomIn}
+            disabled={zoom >= 3}
+            className="shrink-0"
+            aria-label="Zoom avant"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </Button>
         </div>
 
         {/* Playback */}

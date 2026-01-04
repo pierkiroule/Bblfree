@@ -24,6 +24,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   const [brushSize, setBrushSize] = useState(8);
   const [brushMode, setBrushMode] = useState<BrushMode>('pencil');
   const [stampType, setStampType] = useState<StampType>('star');
+  const [zoom, setZoom] = useState(1);
   const timeRef = useRef(0);
 
   const {
@@ -31,17 +32,25 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     currentStroke,
     loopProgress,
     isPlaying,
+    canUndo,
+    canRedo,
     startStroke,
     addPoint,
     endStroke,
     clearStrokes,
     togglePlayback,
     getVisibleStrokes,
+    undo,
+    redo,
   } = useLoopTime({ loopDuration });
 
   const { offset } = useCameraMotion({ intensity: 0.4, enabled: true });
   
   const { isListening, audioData, toggleListening } = useAudioReactive();
+
+  // Zoom handlers
+  const handleZoomIn = () => setZoom(z => Math.min(z + 0.25, 3));
+  const handleZoomOut = () => setZoom(z => Math.max(z - 0.25, 0.5));
 
   // Calculate dimensions
   useEffect(() => {
@@ -100,6 +109,12 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
 
       // Clear canvas
       ctx.clearRect(0, 0, dimensions.width, dimensions.height);
+
+      // Apply zoom
+      ctx.save();
+      ctx.translate(dimensions.width / 2, dimensions.height / 2);
+      ctx.scale(zoom, zoom);
+      ctx.translate(-dimensions.width / 2, -dimensions.height / 2);
 
       // Draw background circle with audio-reactive gradient
       ctx.save();
@@ -230,32 +245,45 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       ctx.stroke();
       ctx.restore();
 
+      // Close zoom transform
+      ctx.restore();
+
       animationId = requestAnimationFrame(render);
     };
 
     render();
 
     return () => cancelAnimationFrame(animationId);
-  }, [dimensions, strokes, currentStroke, loopProgress, offset, getVisibleStrokes, isListening, audioData]);
+  }, [dimensions, strokes, currentStroke, loopProgress, offset, getVisibleStrokes, isListening, audioData, zoom]);
 
   // Pointer handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const point = getCanvasPoint(e.clientX, e.clientY);
     if (!point) return;
 
+    // Apply inverse zoom to coordinates
+    const zoomedPoint = {
+      x: point.x / zoom,
+      y: point.y / zoom,
+    };
+
     setIsDrawing(true);
     canvasRef.current?.setPointerCapture(e.pointerId);
-    startStroke(point.x, point.y, brushColor, brushSize, brushMode, stampType);
-  }, [getCanvasPoint, startStroke, brushColor, brushSize, brushMode, stampType]);
+    
+    // Eraser uses white color
+    const color = brushMode === 'eraser' ? '#ffffff' : brushColor;
+    startStroke(zoomedPoint.x, zoomedPoint.y, color, brushSize, brushMode, stampType);
+  }, [getCanvasPoint, startStroke, brushColor, brushSize, brushMode, stampType, zoom]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDrawing) return;
 
     const point = getCanvasPoint(e.clientX, e.clientY);
     if (point) {
-      addPoint(point.x, point.y);
+      // Apply inverse zoom to coordinates
+      addPoint(point.x / zoom, point.y / zoom);
     }
-  }, [isDrawing, getCanvasPoint, addPoint]);
+  }, [isDrawing, getCanvasPoint, addPoint, zoom]);
 
   const handlePointerUp = useCallback(() => {
     if (isDrawing) {
@@ -275,6 +303,9 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         stampType={stampType}
         isPlaying={isPlaying}
         loopProgress={loopProgress}
+        zoom={zoom}
+        canUndo={canUndo}
+        canRedo={canRedo}
         isListening={isListening}
         audioData={audioData}
         onColorChange={setBrushColor}
@@ -283,6 +314,10 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         onStampTypeChange={setStampType}
         onTogglePlayback={togglePlayback}
         onClear={clearStrokes}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onUndo={undo}
+        onRedo={redo}
         onToggleAudio={toggleListening}
       />
 
@@ -323,7 +358,9 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         {brushMode === 'glow' && '✨ Trail lumineux avec halo'}
         {brushMode === 'particles' && '🌟 Particules flottantes'}
         {brushMode === 'stamp' && `🎨 Tampons ${stampType}`}
+        {brushMode === 'eraser' && '🧹 Gomme dure'}
         {isListening && ' • 🎤 Audio réactif'}
+        {zoom !== 1 && ` • 🔍 ${Math.round(zoom * 100)}%`}
         {' • '} Boucle de {loopDuration / 1000}s
       </p>
     </div>
