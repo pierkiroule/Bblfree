@@ -107,6 +107,15 @@ export function useGifExport() {
         ctx.stroke();
         ctx.restore();
 
+        // Watermark "BubbleLoop" bottom right
+        ctx.save();
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillStyle = 'rgba(100, 100, 100, 0.6)';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('BubbleLoop', width - 10, height - 10);
+        ctx.restore();
+
         // Add frame to GIF
         gif.addFrame(ctx, { copy: true, delay: frameDelay });
 
