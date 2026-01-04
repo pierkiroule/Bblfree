@@ -23,6 +23,7 @@ const DEFAULT_COLORS = [
 
 export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const watermarkCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0, radius: 0 });
   const [isDrawing, setIsDrawing] = useState(false);
@@ -334,6 +335,36 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     return () => cancelAnimationFrame(animationId);
   }, [dimensions, strokes, currentStroke, loopProgress, offset, getVisibleStrokes, isListening, audioData, zoom, pan]);
 
+  // Watermark canvas render (separate layer, never affected by eraser)
+  useEffect(() => {
+    const watermarkCanvas = watermarkCanvasRef.current;
+    if (!watermarkCanvas || dimensions.width === 0) return;
+
+    const ctx = watermarkCanvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear and redraw watermark
+    ctx.clearRect(0, 0, dimensions.width, dimensions.height);
+
+    // Draw watermark text centered
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 0.25;
+
+    // Main title
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillStyle = '#6366f1';
+    ctx.fillText('Démo BubbleLoop', dimensions.width / 2, dimensions.height / 2 - 12);
+
+    // Subtitle
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#8b5cf6';
+    ctx.fillText('Version en cours de finalisation', dimensions.width / 2, dimensions.height / 2 + 14);
+
+    ctx.restore();
+  }, [dimensions]);
+
   // Pointer handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     // Middle mouse or Alt+click for panning
@@ -421,11 +452,12 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         ref={containerRef}
         className="relative w-full aspect-square max-w-[500px]"
       >
+        {/* Drawing canvas (bottom layer - user drawings + eraser) */}
         <canvas
           ref={canvasRef}
           width={dimensions.width}
           height={dimensions.height}
-          className="touch-none"
+          className="touch-none absolute inset-0"
           style={{
             width: dimensions.width || '100%',
             height: dimensions.height || '100%',
@@ -437,6 +469,18 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           onPointerLeave={handlePointerUp}
           onWheel={handleWheel}
           onPointerCancel={handlePointerUp}
+        />
+
+        {/* Watermark canvas (top layer - never receives events, immune to eraser) */}
+        <canvas
+          ref={watermarkCanvasRef}
+          width={dimensions.width}
+          height={dimensions.height}
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            width: dimensions.width || '100%',
+            height: dimensions.height || '100%',
+          }}
         />
 
         {/* Floating effect overlay */}
