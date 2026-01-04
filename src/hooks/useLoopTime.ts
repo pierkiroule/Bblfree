@@ -29,19 +29,25 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
   const [currentStroke, setCurrentStroke] = useState<LoopStroke | null>(null);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [loopProgress, setLoopProgress] = useState(0);
+  const [manualProgress, setManualProgress] = useState<number | null>(null);
   
   // Undo/Redo history
   const [history, setHistory] = useState<LoopStroke[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   
   const loopStartRef = useRef<number>(Date.now());
+  const pauseTimeRef = useRef<number>(0);
   const animationRef = useRef<number>();
 
   // Get normalized time (0-1) in the current loop
   const getNormalizedTime = useCallback(() => {
+    // If paused with manual progress, use that
+    if (!isPlaying && manualProgress !== null) {
+      return manualProgress;
+    }
     const elapsed = Date.now() - loopStartRef.current;
     return (elapsed % loopDuration) / loopDuration;
-  }, [loopDuration]);
+  }, [loopDuration, isPlaying, manualProgress]);
 
   // Save state to history
   const saveToHistory = useCallback((newStrokes: LoopStroke[]) => {
@@ -123,14 +129,55 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
 
   // Toggle playback
   const togglePlayback = useCallback(() => {
-    setIsPlaying(prev => !prev);
-  }, []);
+    setIsPlaying(prev => {
+      if (prev) {
+        // Pausing - store current progress
+        pauseTimeRef.current = getNormalizedTime();
+        setManualProgress(pauseTimeRef.current);
+      } else {
+        // Resuming - adjust loop start to continue from pause point
+        const currentProgress = manualProgress ?? pauseTimeRef.current;
+        loopStartRef.current = Date.now() - (currentProgress * loopDuration);
+        setManualProgress(null);
+      }
+      return !prev;
+    });
+  }, [getNormalizedTime, manualProgress, loopDuration]);
+
+  // Seek to specific progress (0-1)
+  const seekTo = useCallback((progress: number) => {
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    setManualProgress(clampedProgress);
+    setLoopProgress(clampedProgress);
+    
+    // If playing, also update loop start
+    if (isPlaying) {
+      loopStartRef.current = Date.now() - (clampedProgress * loopDuration);
+    }
+  }, [isPlaying, loopDuration]);
+
+  // Step forward/backward
+  const stepForward = useCallback(() => {
+    const step = 0.02; // 2% of loop
+    const current = manualProgress ?? loopProgress;
+    seekTo((current + step) % 1);
+  }, [manualProgress, loopProgress, seekTo]);
+
+  const stepBackward = useCallback(() => {
+    const step = 0.02; // 2% of loop
+    const current = manualProgress ?? loopProgress;
+    seekTo((current - step + 1) % 1);
+  }, [manualProgress, loopProgress, seekTo]);
 
   // Animation loop for progress tracking
   useEffect(() => {
     if (!isPlaying) {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+      }
+      // When paused, use manual progress
+      if (manualProgress !== null) {
+        setLoopProgress(manualProgress);
       }
       return;
     }
@@ -147,7 +194,7 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPlaying, getNormalizedTime]);
+  }, [isPlaying, getNormalizedTime, manualProgress]);
 
   // Get visible strokes at current loop progress
   const getVisibleStrokes = useCallback((progress: number): LoopStroke[] => {
@@ -184,5 +231,8 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     getNormalizedTime,
     undo,
     redo,
+    seekTo,
+    stepForward,
+    stepBackward,
   };
 }
