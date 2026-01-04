@@ -185,7 +185,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-// Minimal GIF encoder
+// Minimal GIF encoder with color support
 class GifWriter {
   private width: number;
   private height: number;
@@ -203,6 +203,9 @@ class GifWriter {
   finish(): string {
     const bytes: number[] = [];
     
+    // Build global color palette from first frame
+    const palette = this.buildPalette(this.frames[0]?.data || new Uint8ClampedArray(0));
+    
     // GIF Header
     this.writeString(bytes, 'GIF89a');
     
@@ -215,7 +218,11 @@ class GifWriter {
     
     // Global Color Table (256 colors)
     for (let i = 0; i < 256; i++) {
-      bytes.push(i, i, i);
+      if (palette[i]) {
+        bytes.push(palette[i].r, palette[i].g, palette[i].b);
+      } else {
+        bytes.push(i, i, i);
+      }
     }
     
     // Netscape Extension for looping
@@ -243,7 +250,7 @@ class GifWriter {
       bytes.push(0x00); // No local color table
       
       // Image Data with LZW encoding
-      const pixels = this.quantizeFrame(frame.data);
+      const pixels = this.quantizeFrame(frame.data, palette);
       const lzw = this.lzwEncode(pixels);
       bytes.push(8); // LZW minimum code size
       
@@ -271,6 +278,41 @@ class GifWriter {
     return 'data:image/gif;base64,' + btoa(binary);
   }
 
+  private buildPalette(rgba: Uint8ClampedArray): { r: number; g: number; b: number }[] {
+    const colorCounts = new Map<string, { r: number; g: number; b: number; count: number }>();
+    
+    // Sample colors from the image
+    const pixelCount = rgba.length / 4;
+    const step = Math.max(1, Math.floor(pixelCount / 10000));
+    
+    for (let i = 0; i < pixelCount; i += step) {
+      const r = rgba[i * 4] & 0xF8;     // Reduce to 5 bits
+      const g = rgba[i * 4 + 1] & 0xF8;
+      const b = rgba[i * 4 + 2] & 0xF8;
+      const key = `${r},${g},${b}`;
+      
+      const existing = colorCounts.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        colorCounts.set(key, { r, g, b, count: 1 });
+      }
+    }
+    
+    // Sort by frequency and take top 256
+    const sortedColors = Array.from(colorCounts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 256);
+    
+    // Fill remaining slots with grayscale
+    while (sortedColors.length < 256) {
+      const gray = sortedColors.length;
+      sortedColors.push({ r: gray, g: gray, b: gray, count: 0 });
+    }
+    
+    return sortedColors;
+  }
+
   private writeString(bytes: number[], str: string) {
     for (let i = 0; i < str.length; i++) {
       bytes.push(str.charCodeAt(i));
@@ -282,15 +324,34 @@ class GifWriter {
     bytes.push((value >> 8) & 0xFF);
   }
 
-  private quantizeFrame(rgba: Uint8ClampedArray): Uint8Array {
+  private quantizeFrame(rgba: Uint8ClampedArray, palette: { r: number; g: number; b: number }[]): Uint8Array {
     const pixels = new Uint8Array(this.width * this.height);
+    
     for (let i = 0; i < pixels.length; i++) {
       const r = rgba[i * 4];
       const g = rgba[i * 4 + 1];
       const b = rgba[i * 4 + 2];
-      // Convert to grayscale for simple palette
-      pixels[i] = Math.round((r * 0.299 + g * 0.587 + b * 0.114));
+      
+      // Find closest color in palette
+      let bestIndex = 0;
+      let bestDist = Infinity;
+      
+      for (let j = 0; j < palette.length; j++) {
+        const dr = r - palette[j].r;
+        const dg = g - palette[j].g;
+        const db = b - palette[j].b;
+        const dist = dr * dr + dg * dg + db * db;
+        
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIndex = j;
+          if (dist === 0) break;
+        }
+      }
+      
+      pixels[i] = bestIndex;
     }
+    
     return pixels;
   }
 
