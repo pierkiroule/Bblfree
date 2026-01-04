@@ -62,6 +62,9 @@ export default {
           800: "hsl(var(--slate-800))",
           900: "hsl(var(--slate-900))",
         },
+        amber: {
+          500: "hsl(var(--amber-500))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

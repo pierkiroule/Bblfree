@@ -159,18 +159,21 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
           </div>
         </div>
 
-        <AnimatePresence mode="wait">
-          <motion.p
-            key={punchlineIndex}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-            className="text-foreground font-semibold text-lg min-h-[3rem]"
-          >
-            {PUNCHLINES[punchlineIndex]}
-          </motion.p>
-        </AnimatePresence>
+        <div className="min-h-[3rem]">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={punchlineIndex}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <p className="text-foreground font-semibold text-lg">
+                {PUNCHLINES[punchlineIndex]}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
         {/* Dots */}
         <div className="flex items-center justify-center gap-2 mt-4" role="tablist">
