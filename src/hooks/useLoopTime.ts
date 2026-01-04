@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
-export type BrushMode = 'pencil' | 'glow' | 'particles' | 'stamp';
+export type BrushMode = 'pencil' | 'glow' | 'particles' | 'stamp' | 'eraser';
 
 export interface LoopPoint {
   x: number;
@@ -30,6 +30,10 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [loopProgress, setLoopProgress] = useState(0);
   
+  // Undo/Redo history
+  const [history, setHistory] = useState<LoopStroke[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  
   const loopStartRef = useRef<number>(Date.now());
   const animationRef = useRef<number>();
 
@@ -38,6 +42,15 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     const elapsed = Date.now() - loopStartRef.current;
     return (elapsed % loopDuration) / loopDuration;
   }, [loopDuration]);
+
+  // Save state to history
+  const saveToHistory = useCallback((newStrokes: LoopStroke[]) => {
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      return [...newHistory, newStrokes];
+    });
+    setHistoryIndex(prev => prev + 1);
+  }, [historyIndex]);
 
   // Start a new stroke
   const startStroke = useCallback((
@@ -75,17 +88,38 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
   // End current stroke
   const endStroke = useCallback(() => {
     if (currentStroke && currentStroke.points.length > 0) {
-      setStrokes(prev => [...prev, currentStroke]);
+      setStrokes(prev => {
+        const newStrokes = [...prev, currentStroke];
+        saveToHistory(newStrokes);
+        return newStrokes;
+      });
     }
     setCurrentStroke(null);
-  }, [currentStroke]);
+  }, [currentStroke, saveToHistory]);
+
+  // Undo
+  const undo = useCallback(() => {
+    if (historyIndex <= 0) return;
+    const newIndex = historyIndex - 1;
+    setHistoryIndex(newIndex);
+    setStrokes(history[newIndex]);
+  }, [history, historyIndex]);
+
+  // Redo
+  const redo = useCallback(() => {
+    if (historyIndex >= history.length - 1) return;
+    const newIndex = historyIndex + 1;
+    setHistoryIndex(newIndex);
+    setStrokes(history[newIndex]);
+  }, [history, historyIndex]);
 
   // Clear all strokes
   const clearStrokes = useCallback(() => {
     setStrokes([]);
     setCurrentStroke(null);
     loopStartRef.current = Date.now();
-  }, []);
+    saveToHistory([]);
+  }, [saveToHistory]);
 
   // Toggle playback
   const togglePlayback = useCallback(() => {
@@ -139,6 +173,8 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     loopProgress,
     isPlaying,
     loopDuration,
+    canUndo: historyIndex > 0,
+    canRedo: historyIndex < history.length - 1,
     startStroke,
     addPoint,
     endStroke,
@@ -146,5 +182,7 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     togglePlayback,
     getVisibleStrokes,
     getNormalizedTime,
+    undo,
+    redo,
   };
 }
