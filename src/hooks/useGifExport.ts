@@ -97,7 +97,24 @@ export function useGifExport() {
       ctx.stroke();
       ctx.restore();
 
-      // Watermark "BubbleLoop" bottom right
+      // Watermark "Démo BubbleLoop" centered with subtitle
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.globalAlpha = 0.25;
+
+      // Main title
+      ctx.font = 'bold 24px sans-serif';
+      ctx.fillStyle = '#6366f1';
+      ctx.fillText('Démo BubbleLoop', width / 2, height / 2 - 12);
+
+      // Subtitle
+      ctx.font = '14px sans-serif';
+      ctx.fillStyle = '#8b5cf6';
+      ctx.fillText('Version en cours de finalisation', width / 2, height / 2 + 14);
+      ctx.restore();
+
+      // Small watermark bottom right
       ctx.save();
       ctx.font = 'bold 14px sans-serif';
       ctx.fillStyle = 'rgba(100, 100, 100, 0.6)';
