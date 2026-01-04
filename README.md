@@ -1,4 +1,8 @@
-# Welcome to your Lovable project
+# BubbleLoop 🫧
+
+> Dessinez • Bouclez • Flottez
+
+Application créative de dessin de bulles animées.
 
 ## Project info
 
