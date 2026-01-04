@@ -23,6 +23,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   const [isDrawing, setIsDrawing] = useState(false);
   const [brushColor, setBrushColor] = useState('#6366f1');
   const [brushSize, setBrushSize] = useState(8);
+  const [brushOpacity, setBrushOpacity] = useState(1);
   const [brushMode, setBrushMode] = useState<BrushMode>('pencil');
   const [stampType, setStampType] = useState<StampType>('star');
   const [zoom, setZoom] = useState(1);
@@ -275,10 +276,11 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     setIsDrawing(true);
     canvasRef.current?.setPointerCapture(e.pointerId);
     
-    // Eraser uses white color
+    // Eraser uses white color and full opacity
     const color = brushMode === 'eraser' ? '#ffffff' : brushColor;
-    startStroke(zoomedPoint.x, zoomedPoint.y, color, brushSize, brushMode, stampType);
-  }, [getCanvasPoint, startStroke, brushColor, brushSize, brushMode, stampType, zoom]);
+    const opacity = brushMode === 'eraser' ? 1 : brushOpacity;
+    startStroke(zoomedPoint.x, zoomedPoint.y, color, brushSize, opacity, brushMode, stampType);
+  }, [getCanvasPoint, startStroke, brushColor, brushSize, brushOpacity, brushMode, stampType, zoom]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDrawing) return;
@@ -304,6 +306,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         colors={COLORS}
         activeColor={brushColor}
         brushSize={brushSize}
+        brushOpacity={brushOpacity}
         brushMode={brushMode}
         stampType={stampType}
         isPlaying={isPlaying}
@@ -315,6 +318,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         audioData={audioData}
         onColorChange={setBrushColor}
         onBrushSizeChange={setBrushSize}
+        onBrushOpacityChange={setBrushOpacity}
         onBrushModeChange={setBrushMode}
         onStampTypeChange={setStampType}
         onTogglePlayback={togglePlayback}

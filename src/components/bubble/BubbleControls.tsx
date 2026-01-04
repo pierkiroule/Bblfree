@@ -10,6 +10,7 @@ interface BubbleControlsProps {
   colors: string[];
   activeColor: string;
   brushSize: number;
+  brushOpacity: number;
   brushMode: BrushMode;
   stampType: StampType;
   isPlaying: boolean;
@@ -21,6 +22,7 @@ interface BubbleControlsProps {
   audioData?: AudioData;
   onColorChange: (color: string) => void;
   onBrushSizeChange: (size: number) => void;
+  onBrushOpacityChange: (opacity: number) => void;
   onBrushModeChange: (mode: BrushMode) => void;
   onStampTypeChange: (stamp: StampType) => void;
   onTogglePlayback: () => void;
@@ -44,6 +46,7 @@ export default function BubbleControls({
   colors,
   activeColor,
   brushSize,
+  brushOpacity,
   brushMode,
   stampType,
   isPlaying,
@@ -55,6 +58,7 @@ export default function BubbleControls({
   audioData,
   onColorChange,
   onBrushSizeChange,
+  onBrushOpacityChange,
   onBrushModeChange,
   onStampTypeChange,
   onTogglePlayback,
@@ -132,26 +136,30 @@ export default function BubbleControls({
         ))}
       </div>
 
-      {/* Brush Size & Controls */}
+      {/* Brush Size & Opacity Controls */}
       <div className="flex items-center gap-3 glass-panel px-4 py-3 rounded-xl flex-wrap">
+        {/* Brush Preview */}
+        <div
+          className="rounded-full shrink-0 flex items-center justify-center"
+          style={{
+            width: Math.max(12, brushSize),
+            height: Math.max(12, brushSize),
+            backgroundColor: brushMode === 'eraser' ? '#ffffff' : (brushMode === 'glow' ? 'transparent' : activeColor),
+            opacity: brushMode === 'eraser' ? 1 : brushOpacity,
+            boxShadow: brushMode === 'glow' ? `0 0 ${brushSize}px ${activeColor}` : (brushMode === 'eraser' ? 'inset 0 0 0 2px hsl(var(--muted))' : 'none'),
+            border: brushMode === 'glow' ? `2px solid ${activeColor}` : 'none',
+          }}
+        >
+          {brushMode === 'stamp' && (
+            <span style={{ fontSize: brushSize * 0.8, color: activeColor }}>
+              {STAMPS[stampType]}
+            </span>
+          )}
+        </div>
+
         {/* Brush Size */}
-        <div className="flex items-center gap-3 flex-1 min-w-[150px]">
-          <div
-            className="rounded-full shrink-0 flex items-center justify-center"
-            style={{
-              width: Math.max(12, brushSize),
-              height: Math.max(12, brushSize),
-              backgroundColor: brushMode === 'eraser' ? '#ffffff' : (brushMode === 'glow' ? 'transparent' : activeColor),
-              boxShadow: brushMode === 'glow' ? `0 0 ${brushSize}px ${activeColor}` : (brushMode === 'eraser' ? 'inset 0 0 0 2px hsl(var(--muted))' : 'none'),
-              border: brushMode === 'glow' ? `2px solid ${activeColor}` : 'none',
-            }}
-          >
-            {brushMode === 'stamp' && (
-              <span style={{ fontSize: brushSize * 0.8, color: activeColor }}>
-                {STAMPS[stampType]}
-              </span>
-            )}
-          </div>
+        <div className="flex items-center gap-2 flex-1 min-w-[100px]">
+          <span className="text-xs text-muted-foreground w-8">Taille</span>
           <Slider
             value={[brushSize]}
             min={4}
@@ -160,71 +168,74 @@ export default function BubbleControls({
             onValueChange={(v) => onBrushSizeChange(v[0])}
             className="flex-1"
           />
+          <span className="text-xs text-muted-foreground w-6">{brushSize}</span>
         </div>
 
+        {/* Brush Opacity */}
+        <div className="flex items-center gap-2 flex-1 min-w-[100px]">
+          <span className="text-xs text-muted-foreground w-8">Opacité</span>
+          <Slider
+            value={[brushOpacity * 100]}
+            min={10}
+            max={100}
+            step={5}
+            onValueChange={(v) => onBrushOpacityChange(v[0] / 100)}
+            className="flex-1"
+          />
+          <span className="text-xs text-muted-foreground w-6">{Math.round(brushOpacity * 100)}%</span>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex items-center justify-center gap-2 flex-wrap glass-panel px-4 py-2 rounded-xl">
         {/* Undo/Redo */}
-        <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onUndo}
-            disabled={!canUndo}
-            className="shrink-0"
-            aria-label="Annuler"
-          >
-            <Undo2 className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onRedo}
-            disabled={!canRedo}
-            className="shrink-0"
-            aria-label="Rétablir"
-          >
-            <Redo2 className="w-4 h-4" />
-          </Button>
-        </div>
-
-        {/* Zoom */}
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onZoomOut}
-            disabled={zoom <= 0.5}
-            className="shrink-0"
-            aria-label="Zoom arrière"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </Button>
-          <span className="text-xs text-muted-foreground w-10 text-center">{Math.round(zoom * 100)}%</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onZoomIn}
-            disabled={zoom >= 3}
-            className="shrink-0"
-            aria-label="Zoom avant"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </Button>
-        </div>
-
-        {/* Playback */}
         <Button
           variant="ghost"
           size="icon"
-          onClick={onTogglePlayback}
+          onClick={onUndo}
+          disabled={!canUndo}
           className="shrink-0"
-          aria-label={isPlaying ? 'Pause' : 'Play'}
+          aria-label="Annuler"
         >
-          {isPlaying ? (
-            <Pause className="w-5 h-5" />
-          ) : (
-            <Play className="w-5 h-5" />
-          )}
+          <Undo2 className="w-4 h-4" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onRedo}
+          disabled={!canRedo}
+          className="shrink-0"
+          aria-label="Rétablir"
+        >
+          <Redo2 className="w-4 h-4" />
+        </Button>
+
+        <div className="w-px h-6 bg-border mx-1" />
+
+        {/* Zoom */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onZoomOut}
+          disabled={zoom <= 0.5}
+          className="shrink-0"
+          aria-label="Zoom arrière"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </Button>
+        <span className="text-xs text-muted-foreground w-10 text-center">{Math.round(zoom * 100)}%</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onZoomIn}
+          disabled={zoom >= 3}
+          className="shrink-0"
+          aria-label="Zoom avant"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </Button>
+
+        <div className="w-px h-6 bg-border mx-1" />
 
         {/* Audio Toggle */}
         {onToggleAudio && (
@@ -267,14 +278,6 @@ export default function BubbleControls({
           ))}
         </div>
       )}
-
-      {/* Loop Progress Bar */}
-      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-primary via-accent to-primary transition-all duration-100"
-          style={{ width: `${loopProgress * 100}%` }}
-        />
-      </div>
     </div>
   );
 }

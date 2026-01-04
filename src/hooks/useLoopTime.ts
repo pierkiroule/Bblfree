@@ -13,6 +13,7 @@ export interface LoopStroke {
   points: LoopPoint[];
   color: string;
   width: number;
+  opacity: number;
   mode: BrushMode;
   stampType?: string;
 }
@@ -63,7 +64,8 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     x: number, 
     y: number, 
     color: string, 
-    width: number, 
+    width: number,
+    opacity: number,
     mode: BrushMode = 'pencil',
     stampType?: string
   ) => {
@@ -72,6 +74,7 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
       points: [{ x, y, t }],
       color,
       width,
+      opacity,
       mode,
       stampType,
     });

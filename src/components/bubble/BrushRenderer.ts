@@ -201,6 +201,10 @@ export function renderStroke(
 ) {
   if (stroke.points.length === 0) return;
 
+  // Apply opacity
+  ctx.save();
+  ctx.globalAlpha = stroke.opacity ?? 1;
+
   switch (stroke.mode) {
     case 'glow':
       drawGlowStroke(
@@ -221,6 +225,7 @@ export function renderStroke(
         (stroke.stampType as StampType) || 'star'
       );
       break;
+    case 'eraser':
     case 'pencil':
     default:
       drawPencilStroke(
@@ -229,4 +234,6 @@ export function renderStroke(
       );
       break;
   }
+
+  ctx.restore();
 }
