@@ -5,8 +5,8 @@ import { useAudioReactive } from '@/hooks/useAudioReactive';
 import { useGallery } from '@/hooks/useGallery';
 import { useGifExport } from '@/hooks/useGifExport';
 import { renderStroke, StampType } from './BrushRenderer';
-import BrushArc from './BrushArc';
-import ColorArc from './ColorArc';
+import BrushToolbar from './BrushToolbar';
+import ColorToolbar from './ColorToolbar';
 import ColorPaletteModal from './ColorPaletteModal';
 import BottomControls from './BottomControls';
 import ExportDialog from './ExportDialog';
@@ -392,72 +392,55 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   }, []);
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-3xl mx-auto px-4">
-      {/* Canvas area with arc controls */}
-      <div 
-        className="relative"
-        style={{ 
-          width: dimensions.width || '100%',
-          paddingTop: 80,
-          paddingRight: 80,
-          paddingBottom: 20,
-        }}
+    <div className="flex flex-col items-center gap-4 w-full max-w-3xl mx-auto px-4">
+      {/* Toolbars */}
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <BrushToolbar
+          brushMode={brushMode}
+          stampType={stampType}
+          activeColor={brushColor}
+          onBrushModeChange={setBrushMode}
+          onStampTypeChange={setStampType}
+        />
+        <ColorToolbar
+          colors={paletteColors}
+          activeColor={brushColor}
+          onColorChange={setBrushColor}
+          onOpenPalette={() => setShowPaletteModal(true)}
+        />
+      </div>
+
+      {/* Canvas Container */}
+      <div
+        ref={containerRef}
+        className="relative w-full aspect-square max-w-[500px]"
       >
-        {/* Canvas Container */}
+        <canvas
+          ref={canvasRef}
+          width={dimensions.width}
+          height={dimensions.height}
+          className="touch-none"
+          style={{
+            width: dimensions.width || '100%',
+            height: dimensions.height || '100%',
+            cursor: isPanning ? 'grabbing' : 'crosshair',
+          }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          onWheel={handleWheel}
+          onPointerCancel={handlePointerUp}
+        />
+
+        {/* Floating effect overlay */}
         <div
-          ref={containerRef}
-          className="relative w-full aspect-square max-w-[500px]"
-        >
-          {/* Brush Arc (top) */}
-          {dimensions.width > 0 && (
-            <BrushArc
-              brushMode={brushMode}
-              stampType={stampType}
-              activeColor={brushColor}
-              onBrushModeChange={setBrushMode}
-              onStampTypeChange={setStampType}
-              canvasSize={dimensions.width}
-            />
-          )}
-
-          {/* Color Arc (right) */}
-          {dimensions.width > 0 && (
-            <ColorArc
-              colors={paletteColors}
-              activeColor={brushColor}
-              onColorChange={setBrushColor}
-              onOpenPalette={() => setShowPaletteModal(true)}
-              canvasSize={dimensions.width}
-            />
-          )}
-
-          <canvas
-            ref={canvasRef}
-            width={dimensions.width}
-            height={dimensions.height}
-            className="touch-none"
-            style={{
-              width: dimensions.width || '100%',
-              height: dimensions.height || '100%',
-              cursor: isPanning ? 'grabbing' : 'crosshair',
-            }}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
-            onWheel={handleWheel}
-            onPointerCancel={handlePointerUp}
-          />
-
-          {/* Floating effect overlay */}
-          <div
-            className="absolute inset-0 pointer-events-none rounded-full"
-            style={{
-              background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%)',
-              transform: `translate(${offset.x * 0.5}px, ${offset.y * 0.5}px)`,
-            }}
-          />
-        </div>
+          className="absolute inset-0 pointer-events-none rounded-full"
+          style={{
+            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%)',
+            transform: `translate(${offset.x * 0.5}px, ${offset.y * 0.5}px)`,
+          }}
+        />
       </div>
 
       {/* Bottom Controls */}
