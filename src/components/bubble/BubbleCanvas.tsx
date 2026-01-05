@@ -167,6 +167,9 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     return { x: canvasX, y: canvasY, screenX, screenY };
   }, [dimensions, zoom, pan]);
 
+  // Offscreen canvas for multi-pass rendering (eraser doesn't pierce background)
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
   // Main render loop
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -174,6 +177,16 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    // Create/resize offscreen canvas for strokes
+    if (!offscreenCanvasRef.current) {
+      offscreenCanvasRef.current = document.createElement('canvas');
+    }
+    const offscreen = offscreenCanvasRef.current;
+    offscreen.width = dimensions.width;
+    offscreen.height = dimensions.height;
+    const offCtx = offscreen.getContext('2d');
+    if (!offCtx) return;
 
     let animationId: number;
     const startTime = performance.now();
@@ -186,10 +199,9 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       const audioGlow = isListening ? audioData.volume * 0.5 : 0;
       const audioPulse = isListening ? Math.sin(timeRef.current * 8) * audioData.treble * 5 : 0;
 
-      // Clear canvas
+      // === PASS 1: Draw background on main canvas ===
       ctx.clearRect(0, 0, dimensions.width, dimensions.height);
 
-      // Draw background circle with audio-reactive gradient
       ctx.save();
       const bgGradient = ctx.createRadialGradient(
         dimensions.width / 2, dimensions.height / 2, 0,
@@ -215,27 +227,27 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       );
       ctx.fillStyle = bgGradient;
       ctx.fill();
-      ctx.clip();
+      ctx.restore();
 
-      // Apply zoom and pan transform for content only
-      ctx.save();
-      ctx.translate(dimensions.width / 2 + pan.x, dimensions.height / 2 + pan.y);
-      ctx.scale(zoom, zoom);
-      ctx.translate(-dimensions.width / 2, -dimensions.height / 2);
+      // === PASS 2: Draw strokes on offscreen canvas (eraser works here) ===
+      offCtx.clearRect(0, 0, dimensions.width, dimensions.height);
 
-      // Draw visible strokes with camera offset and audio reactivity
+      offCtx.save();
+      offCtx.translate(dimensions.width / 2 + pan.x, dimensions.height / 2 + pan.y);
+      offCtx.scale(zoom, zoom);
+      offCtx.translate(-dimensions.width / 2, -dimensions.height / 2);
+
       const visibleStrokes = getVisibleStrokes(loopProgress);
       visibleStrokes.forEach((stroke, i) => {
-        // Apply audio-reactive scale transformation
         const strokeScale = isListening ? 1 + (audioData.frequencies[i % audioData.frequencies.length] || 0) * 0.1 : 1;
         
-        ctx.save();
-        ctx.translate(dimensions.width / 2, dimensions.height / 2);
-        ctx.scale(strokeScale * audioScale, strokeScale * audioScale);
-        ctx.translate(-dimensions.width / 2, -dimensions.height / 2);
+        offCtx.save();
+        offCtx.translate(dimensions.width / 2, dimensions.height / 2);
+        offCtx.scale(strokeScale * audioScale, strokeScale * audioScale);
+        offCtx.translate(-dimensions.width / 2, -dimensions.height / 2);
         
         renderStroke(
-          ctx,
+          offCtx,
           stroke,
           dimensions.width / 2,
           dimensions.height / 2,
@@ -243,13 +255,13 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           offset.y + audioPulse,
           timeRef.current
         );
-        ctx.restore();
+        offCtx.restore();
       });
 
-      // Draw current stroke
+      // Draw current stroke on offscreen
       if (currentStroke) {
         renderStroke(
-          ctx,
+          offCtx,
           currentStroke,
           dimensions.width / 2,
           dimensions.height / 2,
@@ -259,9 +271,20 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         );
       }
 
-      // Close content transform (zoom/pan)
-      ctx.restore();
-      // Close background clip
+      offCtx.restore();
+
+      // === PASS 3: Composite offscreen onto main canvas (clipped to circle) ===
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(
+        dimensions.width / 2,
+        dimensions.height / 2,
+        dimensions.radius,
+        0,
+        Math.PI * 2
+      );
+      ctx.clip();
+      ctx.drawImage(offscreen, 0, 0);
       ctx.restore();
 
       // Draw border glow with audio reactivity
