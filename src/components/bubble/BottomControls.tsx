@@ -6,6 +6,7 @@ import {
   Mic, MicOff, Music
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { AudioData } from '@/hooks/useAudioReactive';
 
 interface BottomControlsProps {
