@@ -33,6 +33,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   const [brushOpacity, setBrushOpacity] = useState(1);
   const [brushMode, setBrushMode] = useState<BrushMode>('pencil');
   const [stampType, setStampType] = useState<StampType>('star');
+  const [customText, setCustomText] = useState('');
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -481,7 +482,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     // Eraser uses white color and full opacity
     const color = brushMode === 'eraser' ? '#ffffff' : brushColor;
     const opacity = brushMode === 'eraser' ? 1 : brushOpacity;
-    startStroke(point.x, point.y, color, brushSize, opacity, brushMode, stampType);
+    startStroke(point.x, point.y, color, brushSize, opacity, brushMode, stampType, customText);
 
     // For stamp mode, end stroke immediately (single stamp per click)
     if (brushMode === 'stamp') {
@@ -491,7 +492,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
 
     setIsDrawing(true);
     canvasRef.current?.setPointerCapture(e.pointerId);
-  }, [getCanvasPoint, startStroke, endStroke, brushColor, brushSize, brushOpacity, brushMode, stampType]);
+  }, [getCanvasPoint, startStroke, endStroke, brushColor, brushSize, brushOpacity, brushMode, stampType, customText]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (isPanning) {
@@ -535,9 +536,11 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         <BrushToolbar
           brushMode={brushMode}
           stampType={stampType}
+          customText={customText}
           activeColor={brushColor}
           onBrushModeChange={setBrushMode}
           onStampTypeChange={setStampType}
+          onCustomTextChange={setCustomText}
         />
         <ColorToolbar
           colors={paletteColors}

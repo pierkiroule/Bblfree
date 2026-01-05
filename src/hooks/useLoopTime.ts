@@ -16,6 +16,7 @@ export interface LoopStroke {
   opacity: number;
   mode: BrushMode;
   stampType?: string;
+  customText?: string;
 }
 
 interface UseLoopTimeOptions {
@@ -67,7 +68,8 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     width: number,
     opacity: number,
     mode: BrushMode = 'pencil',
-    stampType?: string
+    stampType?: string,
+    customText?: string
   ) => {
     const t = getNormalizedTime();
     setCurrentStroke({
@@ -77,6 +79,7 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
       opacity,
       mode,
       stampType,
+      customText,
     });
   }, [getNormalizedTime]);
 
