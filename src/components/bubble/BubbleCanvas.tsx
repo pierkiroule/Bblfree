@@ -3,7 +3,7 @@ import { useLoopTime, BrushMode, LoopStroke } from '@/hooks/useLoopTime';
 import { useCameraMotion } from '@/hooks/useCameraMotion';
 import { useAudioReactive } from '@/hooks/useAudioReactive';
 import { useGallery } from '@/hooks/useGallery';
-import { useGifExport } from '@/hooks/useGifExport';
+import { useWebpExport } from '@/hooks/useWebpExport';
 import { renderStroke, StampType, TextFontKey } from './BrushRenderer';
 import BrushToolbar from './BrushToolbar';
 import ColorToolbar from './ColorToolbar';
@@ -41,14 +41,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   const [isPanning, setIsPanning] = useState(false);
   const lastPanPoint = useRef({ x: 0, y: 0 });
   const timeRef = useRef(0);
-  const {
-  isListening,
-  audioData,
-  source,
-  startMic,
-  loadAudioFile,
-  stop,
-} = useAudioReactive();
+  const { isListening, audioData, source, startMic, loadAudioFile, stop } = useAudioReactive();
 
   // Modals
   const [showPaletteModal, setShowPaletteModal] = useState(false);
@@ -83,10 +76,17 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
 
   // Gallery & Export
   const { items: galleryItems, saveItem, deleteItem, renameItem } = useGallery();
-  const { exportGif, isExporting, progress: exportProgress } = useGifExport();
-  const [gifDataUrl, setGifDataUrl] = useState<string | null>(null);
-  const [gifThumbnail, setGifThumbnail] = useState<string>('');
+  const { exportWebp, isExporting, progress: exportProgress } = useWebpExport();
+  const [videoDataUrl, setVideoDataUrl] = useState<string | null>(null);
+  const [videoThumbnail, setVideoThumbnail] = useState<string>('');
   const [savedToGallery, setSavedToGallery] = useState(false);
+  const audioDataRef = useRef(audioData);
+
+  useEffect(() => {
+    audioDataRef.current = audioData;
+  }, [audioData]);
+
+  const getAudioSnapshot = useCallback(() => audioDataRef.current, []);
 
   // Zoom handlers
   const handleZoomIn = () => setZoom(z => Math.min(z + 0.25, 5));
@@ -95,45 +95,50 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   // Export handler
   const handleExport = async () => {
     try {
-      const result = await exportGif({
+      const result = await exportWebp({
         width: dimensions.width,
         height: dimensions.height,
         radius: dimensions.radius,
         loopDuration: actualLoopDuration,
         strokes,
         fps: 15,
+        isListening,
+        getAudioSnapshot,
       });
-      setGifDataUrl(result.gif);
-      setGifThumbnail(result.thumbnail);
+      setVideoDataUrl(result.video);
+      setVideoThumbnail(result.thumbnail);
       setSavedToGallery(false);
-      toast.success('GIF généré avec succès !');
+      toast.success('Vidéo WebP générée avec succès !');
     } catch (error) {
       console.error('Export failed:', error);
-      toast.error('Erreur lors de la génération du GIF');
+      toast.error('Erreur lors de la génération de la vidéo');
     }
   };
 
   const handleSaveToGallery = () => {
-    if (gifDataUrl && gifThumbnail) {
-      saveItem(gifDataUrl, gifThumbnail, actualLoopDuration);
+    if (videoDataUrl && videoThumbnail) {
+      saveItem(videoDataUrl, videoThumbnail, actualLoopDuration);
       setSavedToGallery(true);
       toast.success('Sauvegardé dans la galerie !');
     }
   };
 
-  const handleDownloadGif = () => {
-    if (gifDataUrl) {
+  const handleDownloadVideo = () => {
+    if (videoDataUrl) {
       const now = new Date();
-      const filename = `BubbleLoop_${now.toISOString().slice(0, 10)}_${now.toTimeString().slice(0, 5).replace(':', 'h')}.gif`;
+      const filename = `BubbleLoop_${now.toISOString().slice(0, 10)}_${now
+        .toTimeString()
+        .slice(0, 5)
+        .replace(':', 'h')}.webp`;
       const link = document.createElement('a');
-      link.href = gifDataUrl;
+      link.href = videoDataUrl;
       link.download = filename;
       link.click();
     }
   };
 
   const handleOpenExportDialog = () => {
-    setGifDataUrl(null);
+    setVideoDataUrl(null);
     setSavedToGallery(false);
     setShowExportDialog(true);
   };
@@ -763,10 +768,10 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         onOpenGallery={() => setShowGalleryDialog(true)}
         isListening={isListening}
         audioData={audioData}
-onStartMic={startMic}
-onImportAudio={loadAudioFile}
-onStopAudio={stop}
-audioSource={source}
+        onStartMic={startMic}
+        onImportAudio={loadAudioFile}
+        onStopAudio={stop}
+        audioSource={source}
       />
 
       {/* Color Palette Modal */}
@@ -783,10 +788,10 @@ audioSource={source}
         onOpenChange={setShowExportDialog}
         isExporting={isExporting}
         progress={exportProgress}
-        gifDataUrl={gifDataUrl}
+        videoDataUrl={videoDataUrl}
         onExport={handleExport}
         onSaveToGallery={handleSaveToGallery}
-        onDownload={handleDownloadGif}
+        onDownload={handleDownloadVideo}
         savedToGallery={savedToGallery}
       />
 

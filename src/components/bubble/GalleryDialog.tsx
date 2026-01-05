@@ -50,7 +50,7 @@ export default function GalleryDialog({
   const handleDownload = (item: GalleryItem) => {
     const link = document.createElement('a');
     link.href = item.dataUrl;
-    link.download = `${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.gif`;
+    link.download = `${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.webp`;
     link.click();
   };
 
@@ -79,7 +79,7 @@ export default function GalleryDialog({
           <div className="py-12 text-center text-muted-foreground">
             <ImageIcon className="w-12 h-12 mx-auto mb-4 opacity-30" />
             <p>Aucune création sauvegardée</p>
-            <p className="text-sm mt-1">Exporte un GIF pour le voir ici</p>
+            <p className="text-sm mt-1">Exporte une vidéo pour la retrouver ici</p>
           </div>
         ) : (
           <ScrollArea className="h-[60vh] pr-4">
@@ -93,10 +93,15 @@ export default function GalleryDialog({
                   ← Retour
                 </Button>
                 <div className="rounded-lg overflow-hidden border bg-muted/30 flex items-center justify-center p-4">
-                  <img
+                  <video
                     src={selectedItem.dataUrl}
-                    alt={selectedItem.title}
-                    className="max-w-full max-h-[40vh] rounded"
+                    poster={selectedItem.thumbnail}
+                    loop
+                    autoPlay
+                    muted
+                    playsInline
+                    controls
+                    className="max-w-full max-h-[40vh] rounded bg-black"
                   />
                 </div>
                 <div className="flex items-center justify-between">
