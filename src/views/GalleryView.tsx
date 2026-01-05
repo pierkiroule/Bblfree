@@ -35,7 +35,7 @@ export default function GalleryView() {
   const handleDownload = (item: { dataUrl: string; title: string }) => {
     const link = document.createElement('a');
     link.href = item.dataUrl;
-    link.download = `${item.title}.gif`;
+    link.download = `${item.title}.webp`;
     link.click();
   };
 
@@ -126,12 +126,23 @@ export default function GalleryView() {
                   onMouseLeave={() => setHoveredId(null)}
                 >
                   <div className="aspect-square rounded-2xl overflow-hidden glass-panel shadow-soft hover:shadow-elevated transition-all cursor-pointer">
-                    {/* Show GIF on hover, thumbnail otherwise */}
-                    <img
-                      src={hoveredId === item.id ? item.dataUrl : item.thumbnail}
-                      alt={item.title}
-                      className="w-full h-full object-cover"
-                    />
+                    {hoveredId === item.id ? (
+                      <video
+                        src={item.dataUrl}
+                        poster={item.thumbnail}
+                        className="w-full h-full object-cover bg-black"
+                        loop
+                        autoPlay
+                        muted
+                        playsInline
+                      />
+                    ) : (
+                      <img
+                        src={item.thumbnail}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
                     
                     {/* Play indicator */}
                     {hoveredId !== item.id && (

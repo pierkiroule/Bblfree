@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,7 @@ interface ExportDialogProps {
   onOpenChange: (open: boolean) => void;
   isExporting: boolean;
   progress: number;
-  gifDataUrl: string | null;
+  videoDataUrl: string | null;
   onExport: () => void;
   onSaveToGallery: () => void;
   onDownload: () => void;
@@ -26,7 +26,7 @@ export default function ExportDialog({
   onOpenChange,
   isExporting,
   progress,
-  gifDataUrl,
+  videoDataUrl,
   onExport,
   onSaveToGallery,
   onDownload,
@@ -36,18 +36,18 @@ export default function ExportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Exporter en GIF</DialogTitle>
+          <DialogTitle>Exporter en vidéo WebP</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {!gifDataUrl && !isExporting && (
+          {!videoDataUrl && !isExporting && (
             <div className="text-center py-8">
               <p className="text-muted-foreground mb-4">
-                Génère un GIF animé de ta boucle
+                Génère une vidéo .webp animée de ta boucle, avec les effets audioreactifs.
               </p>
               <Button onClick={onExport} size="lg">
                 <Download className="w-4 h-4 mr-2" />
-                Générer le GIF
+                Générer la vidéo
               </Button>
             </div>
           )}
@@ -65,13 +65,17 @@ export default function ExportDialog({
             </div>
           )}
 
-          {gifDataUrl && !isExporting && (
+          {videoDataUrl && !isExporting && (
             <div className="space-y-4">
               <div className="rounded-lg overflow-hidden border bg-muted/30 flex items-center justify-center p-4">
-                <img
-                  src={gifDataUrl}
-                  alt="Aperçu GIF"
-                  className="max-w-full max-h-64 rounded"
+                <video
+                  src={videoDataUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  controls
+                  className="max-w-full max-h-64 rounded bg-black"
                 />
               </div>
 

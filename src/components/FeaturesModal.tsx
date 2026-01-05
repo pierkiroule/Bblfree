@@ -39,7 +39,7 @@ export default function FeaturesModal({ open, onOpenChange }: FeaturesModalProps
               <li>• Outil texte simple</li>
               <li>• Boucle lecture / pause</li>
               <li>• Galerie locale</li>
-              <li>• Export GIF basse résolution</li>
+              <li>• Export vidéo WebP en boucle</li>
               <li>• Export avec watermark Démo</li>
             </ul>
           </div>
