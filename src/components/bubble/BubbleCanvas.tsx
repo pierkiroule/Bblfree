@@ -548,16 +548,24 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.globalAlpha = 0.25;
+    ctx.globalAlpha = 0.35;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
 
     // Main title
     ctx.font = 'bold 24px sans-serif';
     ctx.fillStyle = '#6366f1';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.lineWidth = 4;
+    ctx.strokeText('Démo BubbleLoop', dimensions.width / 2, dimensions.height / 2 - 12);
     ctx.fillText('Démo BubbleLoop', dimensions.width / 2, dimensions.height / 2 - 12);
 
     // Subtitle
     ctx.font = '14px sans-serif';
     ctx.fillStyle = '#8b5cf6';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 3;
+    ctx.strokeText('Version en cours de finalisation', dimensions.width / 2, dimensions.height / 2 + 14);
     ctx.fillText('Version en cours de finalisation', dimensions.width / 2, dimensions.height / 2 + 14);
 
     ctx.restore();
@@ -665,7 +673,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           ref={canvasRef}
           width={dimensions.width}
           height={dimensions.height}
-          className="touch-none absolute inset-0"
+          className="touch-none absolute inset-0 z-0"
           style={{
             width: dimensions.width || '100%',
             height: dimensions.height || '100%',
@@ -684,7 +692,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           ref={watermarkCanvasRef}
           width={dimensions.width}
           height={dimensions.height}
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0 pointer-events-none z-20"
           style={{
             width: dimensions.width || '100%',
             height: dimensions.height || '100%',
@@ -693,7 +701,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
 
         {/* Floating effect overlay */}
         <div
-          className="absolute inset-0 pointer-events-none rounded-full"
+          className="absolute inset-0 pointer-events-none rounded-full z-10"
           style={{
             background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%)',
             transform: `translate(${offset.x * 0.5}px, ${offset.y * 0.5}px)`,
