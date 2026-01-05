@@ -206,7 +206,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
 
       // Audio reactive values
       const audioScale = isListening ? 1 + audioData.bass * 0.15 : 1;
-      const audioGlow = isListening ? audioData.volume * 0.5 : 0;
+      const audioGlow = 0;
       const audioPulse = isListening ? Math.sin(timeRef.current * 8) * audioData.treble * 5 : 0;
 
       // === PASS 1: Draw background on main canvas ===
@@ -217,15 +217,8 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         dimensions.width / 2, dimensions.height / 2, 0,
         dimensions.width / 2, dimensions.height / 2, dimensions.radius
       );
-      
-      if (isListening && audioData.volume > 0.1) {
-        const hue = 239 + audioData.mid * 60;
-        bgGradient.addColorStop(0, `hsl(${hue} 30% 98%)`);
-        bgGradient.addColorStop(1, `hsl(${hue} 40% 95%)`);
-      } else {
-        bgGradient.addColorStop(0, '#ffffff');
-        bgGradient.addColorStop(1, '#f8fafc');
-      }
+      bgGradient.addColorStop(0, '#ffffff');
+      bgGradient.addColorStop(1, '#f8fafc');
       
       ctx.beginPath();
       ctx.arc(
@@ -275,7 +268,8 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           dimensions.height / 2,
           offset.x + audioPulse,
           offset.y + audioPulse,
-          timeRef.current
+          timeRef.current,
+          isListening ? { volume: audioData.volume, treble: audioData.treble } : undefined
         );
         offCtx.restore();
       });
@@ -296,7 +290,8 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           dimensions.height / 2,
           offset.x,
           offset.y,
-          timeRef.current
+          timeRef.current,
+          isListening ? { volume: audioData.volume, treble: audioData.treble } : undefined
         );
       }
 

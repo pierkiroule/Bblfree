@@ -27,6 +27,10 @@ export const TEXT_FONTS = {
 } as const;
 
 export type TextFontKey = keyof typeof TEXT_FONTS;
+export interface StrokeAudioReactiveData {
+  volume: number;
+  treble: number;
+}
 
 // Draw a basic pencil stroke
 function drawPencilStroke(
@@ -37,7 +41,9 @@ function drawPencilStroke(
   centerX: number,
   centerY: number,
   offsetX: number,
-  offsetY: number
+  offsetY: number,
+  time: number,
+  audioReactive?: StrokeAudioReactiveData
 ) {
   if (points.length < 2) return;
 
@@ -48,16 +54,45 @@ function drawPencilStroke(
   ctx.lineJoin = 'round';
 
   ctx.beginPath();
-  ctx.moveTo(
-    points[0].x + centerX + offsetX,
-    points[0].y + centerY + offsetY
-  );
+  const audioStrength = audioReactive
+    ? Math.min(1, audioReactive.volume * 0.6 + audioReactive.treble * 0.9)
+    : 0;
+  const baseJitter = width * 0.2 * audioStrength;
+
+  const getJitteredPoint = (point: LoopPoint, prev: LoopPoint | null, index: number) => {
+    const baseX = point.x + centerX + offsetX;
+    const baseY = point.y + centerY + offsetY;
+
+    if (!prev || baseJitter === 0) {
+      return { x: baseX, y: baseY };
+    }
+
+    const dx = point.x - prev.x;
+    const dy = point.y - prev.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist === 0) {
+      return { x: baseX, y: baseY };
+    }
+
+    const speedDamping = 1 / (1 + dist * 0.35);
+    const wave = Math.sin(time * 6 + index * 0.6);
+    const jitter = baseJitter * speedDamping * wave;
+    const normalX = -dy / dist;
+    const normalY = dx / dist;
+
+    return {
+      x: baseX + normalX * jitter,
+      y: baseY + normalY * jitter,
+    };
+  };
+
+  const firstPoint = getJitteredPoint(points[0], null, 0);
+  ctx.moveTo(firstPoint.x, firstPoint.y);
 
   for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(
-      points[i].x + centerX + offsetX,
-      points[i].y + centerY + offsetY
-    );
+    const jittered = getJitteredPoint(points[i], points[i - 1], i);
+    ctx.lineTo(jittered.x, jittered.y);
   }
 
   ctx.stroke();
@@ -292,7 +327,8 @@ export function renderStroke(
   centerY: number,
   offsetX: number,
   offsetY: number,
-  time: number = 0
+  time: number = 0,
+  audioReactive?: StrokeAudioReactiveData
 ) {
   if (stroke.points.length === 0) return;
 
@@ -332,7 +368,7 @@ export function renderStroke(
     default:
       drawPencilStroke(
         ctx, stroke.points, stroke.color, stroke.width,
-        centerX, centerY, offsetX, offsetY
+        centerX, centerY, offsetX, offsetY, time, audioReactive
       );
       break;
   }
