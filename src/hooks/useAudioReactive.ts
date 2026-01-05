@@ -6,6 +6,11 @@ export interface AudioData {
   mid: number;
   treble: number;
   frequencies: number[];
+  /**
+   * A smoothed "energy" metric used to drive visual effects.
+   * Mixes spectral energy with overall loudness for a stable signal.
+   */
+  energy: number;
 }
 
 type AudioSourceType = 'mic' | 'file' | null;
@@ -27,7 +32,9 @@ export function useAudioReactive({
     mid: 0,
     treble: 0,
     frequencies: [],
+    energy: 0,
   });
+  const energyRef = useRef(0);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -71,7 +78,12 @@ export function useAudioReactive({
       frequencies.push(data[i] / 255);
     }
 
-    setAudioData({ volume, bass, mid, treble, frequencies });
+    // Smoothed energy (mix of volume + weighted bands)
+    const rawEnergy = Math.min(1, volume * 0.6 + bass * 0.8 + mid * 0.4 + treble * 0.25);
+    const smoothedEnergy = energyRef.current + (rawEnergy - energyRef.current) * 0.35;
+    energyRef.current = smoothedEnergy;
+
+    setAudioData({ volume, bass, mid, treble, frequencies, energy: smoothedEnergy });
     rafRef.current = requestAnimationFrame(analyze);
   }, []);
 
@@ -113,6 +125,11 @@ export function useAudioReactive({
     const mic = ctx.createMediaStreamSource(stream);
     mic.connect(analyserRef.current!);
 
+    // Avoid feedback when using the microphone: keep output muted.
+    if (gainRef.current) {
+      gainRef.current.gain.value = 0;
+    }
+
     streamRef.current = stream;
     setSource('mic');
     setIsListening(true);
@@ -133,7 +150,12 @@ export function useAudioReactive({
     src.buffer = buffer;
     src.loop = true;
 
+    // Playable + analysable path
     src.connect(analyserRef.current!);
+    if (gainRef.current) {
+      gainRef.current.gain.value = 0.9;
+    }
+
     src.start();
 
     bufferSourceRef.current = src;
@@ -165,12 +187,14 @@ export function useAudioReactive({
 
     setIsListening(false);
     setSource(null);
+    energyRef.current = 0;
     setAudioData({
       volume: 0,
       bass: 0,
       mid: 0,
       treble: 0,
       frequencies: [],
+      energy: 0,
     });
   }, []);
 

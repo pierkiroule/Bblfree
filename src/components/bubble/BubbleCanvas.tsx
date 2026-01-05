@@ -246,13 +246,22 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       offCtx.translate(dimensions.width / 2 + pan.x, dimensions.height / 2 + pan.y);
       offCtx.scale(zoom, zoom);
       offCtx.translate(-dimensions.width / 2, -dimensions.height / 2);
-const freqs = audioData.frequencies;
-const freqsLen = freqs.length || 1;
+      const freqs = audioData.frequencies;
+      const freqsLen = freqs.length || 1;
       const visibleStrokes = getVisibleStrokes(loopProgress);
       visibleStrokes.forEach((stroke, i) => {
+        const freqValue = freqs[i % freqsLen] || 0;
+        const energy = audioData.energy ?? audioData.volume;
         const strokeScale = isListening
-  ? 1 + (freqs[i % freqsLen] || 0) * 0.1
-  : 1;
+          ? 1 + freqValue * 0.1
+          : 1;
+        const widthBoost = 1 + energy * 0.35 + freqValue * 0.45;
+        const boostedOpacity = Math.min(1, (stroke.opacity ?? 1) + energy * 0.25);
+        const boostedStroke: LoopStroke = {
+          ...stroke,
+          width: stroke.width * widthBoost,
+          opacity: boostedOpacity,
+        };
         
         offCtx.save();
         offCtx.translate(dimensions.width / 2, dimensions.height / 2);
@@ -261,7 +270,7 @@ const freqsLen = freqs.length || 1;
         
         renderStroke(
           offCtx,
-          stroke,
+          boostedStroke,
           dimensions.width / 2,
           dimensions.height / 2,
           offset.x + audioPulse,
@@ -273,9 +282,16 @@ const freqsLen = freqs.length || 1;
 
       // Draw current stroke on offscreen
       if (currentStroke) {
+        const energy = audioData.energy ?? audioData.volume;
+        const boostedStroke: LoopStroke = {
+          ...currentStroke,
+          width: currentStroke.width * (1 + energy * 0.3),
+          opacity: Math.min(1, (currentStroke.opacity ?? 1) + energy * 0.2),
+        };
+
         renderStroke(
           offCtx,
-          currentStroke,
+          boostedStroke,
           dimensions.width / 2,
           dimensions.height / 2,
           offset.x,
@@ -343,32 +359,30 @@ const freqsLen = freqs.length || 1;
       }
       ctx.restore();
 
-// === AUDIO RING (VISIBLE SUPPORT) ===
-if (isListening) {
-  ctx.save();
-  ctx.beginPath();
+      // === AUDIO RING (VISIBLE SUPPORT) ===
+      if (isListening) {
+        ctx.save();
+        ctx.beginPath();
 
-  const ringRadius =
-    dimensions.radius + 6 + audioData.bass * 12;
+        const ringRadius =
+          dimensions.radius + 6 + audioData.bass * 12;
 
-  ctx.arc(
-    dimensions.width / 2,
-    dimensions.height / 2,
-    ringRadius,
-    0,
-    Math.PI * 2
-  );
+        ctx.arc(
+          dimensions.width / 2,
+          dimensions.height / 2,
+          ringRadius,
+          0,
+          Math.PI * 2
+        );
 
-  ctx.strokeStyle = `hsla(280, 90%, 65%, ${0.35 + audioData.volume * 0.4})`;
-  ctx.lineWidth = 2 + audioData.bass * 2;
-  ctx.shadowBlur = 10 + audioData.bass * 20;
-  ctx.shadowColor = 'hsla(280,90%,70%,0.6)';
+        ctx.strokeStyle = `hsla(280, 90%, 65%, ${0.35 + audioData.volume * 0.4})`;
+        ctx.lineWidth = 2 + audioData.bass * 2;
+        ctx.shadowBlur = 10 + audioData.bass * 20;
+        ctx.shadowColor = 'hsla(280,90%,70%,0.6)';
 
-  ctx.stroke();
-  ctx.restore();
-}
-
-
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // === MICRO-BUBBLES AUDIO-REACTIVE EFFECT WITH DISPERSION ===
       if (isListening && audioData.volume > 0.05) {
@@ -398,16 +412,16 @@ if (isListening) {
 
           // Distance: starts at border, escapes outward progressively
           const ringRadius = dimensions.radius + 6 + audioData.bass * 12;
-const startDist = ringRadius;
+          const startDist = ringRadius;
           const maxEscape = 40 + (seed % 20); // Max distance to travel
           const escapeEase = 1 - Math.pow(1 - lifecycleProgress, 2); // Ease out
           const escapeDist = escapeEase * maxEscape;
           
           const freqs = audioData.frequencies;
-const freqsLen = freqs.length || 1;
+          const freqsLen = freqs.length || 1;
           // Audio makes them jump/pulse
           const freqIndex = i % freqsLen;
-const freqValue = freqs[freqIndex] || 0;
+          const freqValue = freqs[freqIndex] || 0;
           const audioPush = freqValue * 15 + audioData.bass * 8;
           
           const dist = startDist + escapeDist + audioPush;
@@ -445,6 +459,47 @@ const freqValue = freqs[freqIndex] || 0;
 
           ctx.beginPath();
           ctx.arc(bx, by, Math.max(0.5, finalSize), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // === ESCAPING MICRO-BUBBLE JETS HUGGING THE CONTOUR ===
+      if (isListening && audioData.energy > 0.08) {
+        const energy = audioData.energy;
+        const jetCount = Math.min(32, Math.floor(12 + energy * 32));
+        const ringRadius = dimensions.radius + 8 + audioData.bass * 10;
+        const jetTime = timeRef.current;
+
+        for (let i = 0; i < jetCount; i++) {
+          const angle = (i / jetCount) * Math.PI * 2 + Math.sin(jetTime * 0.6 + i) * 0.08;
+          const freqValue = freqs[i % freqsLen] || 0;
+          const push = (0.4 + energy * 0.9 + freqValue * 0.8) * 32;
+          const jitter = Math.sin(jetTime * 2 + i * 1.7) * 6;
+
+          const startX = dimensions.width / 2 + Math.cos(angle) * ringRadius;
+          const startY = dimensions.height / 2 + Math.sin(angle) * ringRadius;
+          const endX = dimensions.width / 2 + Math.cos(angle) * (ringRadius + push + jitter);
+          const endY = dimensions.height / 2 + Math.sin(angle) * (ringRadius + push + jitter);
+
+          const bubbleSize = 1.2 + energy * 2 + freqValue * 3;
+          const alpha = 0.25 + energy * 0.5;
+
+          ctx.save();
+          ctx.globalAlpha = Math.min(0.9, alpha);
+          const grd = ctx.createLinearGradient(startX, startY, endX, endY);
+          grd.addColorStop(0, 'rgba(99,102,241,0.25)');
+          grd.addColorStop(1, 'rgba(236,72,153,0.6)');
+          ctx.strokeStyle = grd;
+          ctx.lineWidth = bubbleSize * 0.6;
+          ctx.beginPath();
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(endX, endY);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.fillStyle = `rgba(236,72,153,${alpha})`;
+          ctx.arc(endX, endY, bubbleSize * 1.2, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
         }
@@ -570,12 +625,12 @@ const freqValue = freqs[freqIndex] || 0;
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
     setZoom(z => Math.max(0.25, Math.min(5, z + delta)));
   }, []);
-  
+
   useEffect(() => {
-  return () => {
-    stop();
-  };
-}, [stop]);
+    return () => {
+      stop();
+    };
+  }, [stop]);
 
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-3xl mx-auto px-4">
