@@ -122,7 +122,7 @@ export default function BrushToolbar({
                 w-9 h-9 rounded-lg flex items-center justify-center
                 transition-all duration-200
                 ${isTextValidated
-                  ? 'bg-green-500/20 text-green-500 ring-2 ring-green-500'
+                  ? 'bg-primary/20 text-foreground ring-2 ring-primary'
                   : inputText.trim()
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                     : 'bg-muted text-muted-foreground cursor-not-allowed'

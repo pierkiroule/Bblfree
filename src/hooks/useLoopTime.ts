@@ -72,9 +72,9 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     stampType?: string,
     customText?: string,
     textFont?: string
-  ) => {
+  ): LoopStroke => {
     const t = getNormalizedTime();
-    setCurrentStroke({
+    const stroke: LoopStroke = {
       points: [{ x, y, t }],
       color,
       width,
@@ -83,7 +83,9 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
       stampType,
       customText,
       textFont,
-    });
+    };
+    setCurrentStroke(stroke);
+    return stroke;
   }, [getNormalizedTime]);
 
   // Add point to current stroke
@@ -101,10 +103,12 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
   }, [currentStroke, getNormalizedTime]);
 
   // End current stroke
-  const endStroke = useCallback(() => {
-    if (currentStroke && currentStroke.points.length > 0) {
+  const endStroke = useCallback((strokeOverride?: LoopStroke | null) => {
+    const strokeToCommit = strokeOverride ?? currentStroke;
+
+    if (strokeToCommit && strokeToCommit.points.length > 0) {
       setStrokes(prev => {
-        const newStrokes = [...prev, currentStroke];
+        const newStrokes = [...prev, strokeToCommit];
         saveToHistory(newStrokes);
         return newStrokes;
       });
