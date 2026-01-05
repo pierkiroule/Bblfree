@@ -59,7 +59,7 @@ export function useGifExport() {
       const visibleStrokes = getVisibleStrokesForProgress(strokes, frameProgress);
       
       visibleStrokes.forEach(stroke => {
-        renderStroke(ctx, stroke, width / 2, height / 2, 0, 0, i * frameDelay / 1000);
+        renderStroke(ctx, stroke, width / 2, height / 2, 0, 0, i * frameDelay / 1000, undefined);
       });
 
       ctx.restore();

@@ -151,11 +151,15 @@ function drawGlowStroke(
   centerX: number,
   centerY: number,
   offsetX: number,
-  offsetY: number
+  offsetY: number,
+  time: number,
+  audioReactive?: StrokeAudioReactiveData
 ) {
   if (points.length < 2) return;
 
   ctx.save();
+  const treble = audioReactive?.treble ?? 0;
+  const fastLfo = 0.5 + 0.5 * Math.sin(time * 12);
   
   // Multiple layers for glow effect
   const layers = [
@@ -190,6 +194,69 @@ function drawGlowStroke(
     ctx.stroke();
     ctx.restore();
   });
+
+  // Audio-reactive flare cloud
+  const flareSpacing = Math.max(1, Math.floor(points.length / 18));
+  const baseFlareOpacity = Math.min(1, 0.25 + treble * 0.9);
+  ctx.globalCompositeOperation = 'lighter';
+
+  for (let i = 0; i < points.length; i += flareSpacing) {
+    const point = points[i];
+    const seed = i * 91.7;
+    const angle = (seed % 360) * (Math.PI / 180);
+    const jitter = (Math.sin(seed) * 0.5 + 0.5) * width * 1.2;
+    const lfo = 0.6 + fastLfo * 0.4;
+    const px = point.x + centerX + offsetX + Math.cos(angle + time * 0.8) * (width * 2 + jitter);
+    const py = point.y + centerY + offsetY + Math.sin(angle + time * 0.8) * (width * 2 + jitter);
+    const flareRadius = width * (1.2 + treble * 1.6) * (0.6 + (Math.sin(seed * 0.75 + time * 4) * 0.5 + 0.5));
+    const flareAlpha = baseFlareOpacity * lfo;
+
+    if (flareAlpha < 0.02) continue;
+
+    const gradient = ctx.createRadialGradient(px, py, 0, px, py, flareRadius);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(0.35, color);
+    gradient.addColorStop(1, 'transparent');
+
+    ctx.save();
+    ctx.globalAlpha = flareAlpha;
+    ctx.filter = 'blur(6px)';
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(px, py, flareRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Ephemeral sparks boosted by treble peaks
+  const sparkSpacing = Math.max(1, Math.floor(points.length / 14));
+  const sparkCount = Math.floor(2 + treble * 10);
+
+  for (let i = 0; i < points.length; i += sparkSpacing) {
+    const basePoint = points[i];
+    const seed = i * 133.1;
+
+    for (let s = 0; s < sparkCount; s++) {
+      const sparkAngle = ((seed + s * 31.7) % 360) * (Math.PI / 180);
+      const pulse = 0.5 + 0.5 * Math.sin(time * 14 + seed + s);
+      const sparkDist = width * (1.5 + treble * 2.2) * pulse;
+      const px = basePoint.x + centerX + offsetX + Math.cos(sparkAngle) * sparkDist;
+      const py = basePoint.y + centerY + offsetY + Math.sin(sparkAngle) * sparkDist;
+      const sparkSize = Math.max(1, width * 0.2 + treble * 0.8) * (0.6 + pulse * 0.6);
+      const sparkAlpha = Math.min(1, 0.4 + treble * 0.6) * (0.4 + fastLfo * 0.6) * (1 - s / (sparkCount + 1));
+
+      if (sparkAlpha < 0.03) continue;
+
+      ctx.save();
+      ctx.globalAlpha = sparkAlpha;
+      ctx.filter = 'blur(2px)';
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(px, py, sparkSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
 
   ctx.restore();
 }
@@ -340,7 +407,7 @@ export function renderStroke(
     case 'glow':
       drawGlowStroke(
         ctx, stroke.points, stroke.color, stroke.width,
-        centerX, centerY, offsetX, offsetY
+        centerX, centerY, offsetX, offsetY, time, audioReactive
       );
       break;
     case 'particles':
