@@ -275,7 +275,8 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           dimensions.height / 2,
           offset.x + audioPulse,
           offset.y + audioPulse,
-          timeRef.current
+          timeRef.current,
+          isListening ? { volume: audioData.volume, treble: audioData.treble } : undefined
         );
         offCtx.restore();
       });
@@ -296,7 +297,8 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           dimensions.height / 2,
           offset.x,
           offset.y,
-          timeRef.current
+          timeRef.current,
+          isListening ? { volume: audioData.volume, treble: audioData.treble } : undefined
         );
       }
 
