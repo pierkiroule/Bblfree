@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 
 import BubbleLoopLogo from "../components/BubbleLoopLogo";
 import BubbleLoopTitle from "../components/BubbleLoopTitle";
@@ -155,12 +156,12 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
           <button onClick={() => setShowUseCasesModal(true)} className="text-emerald-600 font-bold text-sm underline">
             Cas d’usage
           </button>
-          <a
-            href="/cgu"
+          <Link
+            to="/cgu"
             className="text-xs text-slate-400 hover:text-slate-600 underline"
           >
             Conditions Générales d’Utilisation
-          </a>
+          </Link>
         </div>
       </motion.div>
 
