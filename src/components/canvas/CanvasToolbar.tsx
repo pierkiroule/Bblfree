@@ -104,7 +104,7 @@ export default function CanvasToolbar({
         <span className="text-xs font-semibold text-muted-foreground">Taille</span>
         <input
           type="range"
-          min="2"
+          min="1"
           max="50"
           value={brushSize}
           onChange={(e) => onBrushSizeChange(Number(e.target.value))}
