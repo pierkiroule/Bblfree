@@ -406,7 +406,15 @@ function drawStampStroke(
     ctx.translate(x, y);
     ctx.rotate(rotation);
 
+    // Clip every pass to a perfect circle to prevent bleed outside the sticker
+    ctx.beginPath();
+    ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+
     // Base monochrome mask
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(imageStamp.source, -size / 2, -size / 2, size, size);
     ctx.globalCompositeOperation = 'source-in';
     ctx.fillStyle = color;

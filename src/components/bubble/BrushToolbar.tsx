@@ -137,16 +137,16 @@ export default function BrushToolbar({
               onClick={openFilePicker}
               disabled={isImportingImage}
               className={`
-                px-3 h-9 rounded-lg text-xs font-medium border
-                flex items-center gap-1 transition-colors
+                w-9 h-9 rounded-lg border
+                flex items-center justify-center transition-colors
                 ${isImportingImage
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : 'bg-primary text-primary-foreground hover:bg-primary/90'
                 }
               `}
+              title="Importer une image"
             >
-              <ImageDown className="w-4 h-4" />
-              {isImportingImage ? 'Import...' : 'Importer image'}
+              <ImageDown className={`w-4 h-4 ${isImportingImage ? 'animate-pulse' : ''}`} />
             </button>
             <input
               ref={fileInputRef}
