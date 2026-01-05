@@ -8,6 +8,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { AudioData } from '@/hooks/useAudioReactive';
+import { LoopMode } from '@/hooks/useLoopTime';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface BottomControlsProps {
   // Timeline
@@ -18,6 +26,8 @@ interface BottomControlsProps {
   onTogglePlayback: () => void;
   onStepBack: () => void;
   onStepForward: () => void;
+  loopMode: LoopMode;
+  onLoopModeChange: (mode: LoopMode) => void;
 
   // Zoom
   zoom: number;
@@ -53,6 +63,8 @@ export default function BottomControls(props: BottomControlsProps) {
     onTogglePlayback,
     onStepBack,
     onStepForward,
+    loopMode,
+    onLoopModeChange,
     zoom,
     onZoomIn,
     onZoomOut,
@@ -97,6 +109,19 @@ export default function BottomControls(props: BottomControlsProps) {
         />
 
         <span className="text-xs w-12 text-right">{formatTime(progress)}</span>
+
+        <Select
+          value={loopMode}
+          onValueChange={(value) => onLoopModeChange(value as LoopMode)}
+        >
+          <SelectTrigger className="w-36 h-9 text-xs">
+            <SelectValue placeholder="Mode" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="loop">Boucle simple</SelectItem>
+            <SelectItem value="ping-pong">Aller-retour</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Actions */}

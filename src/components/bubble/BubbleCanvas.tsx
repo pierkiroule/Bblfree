@@ -60,6 +60,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     currentStroke,
     loopProgress,
     isPlaying,
+    loopMode,
     loopDuration: actualLoopDuration,
     canUndo,
     canRedo,
@@ -74,6 +75,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     seekTo,
     stepForward,
     stepBackward,
+    setLoopMode,
   } = useLoopTime({ loopDuration });
 
   const { offset } = useCameraMotion({ intensity: 0.4, enabled: true });
@@ -747,6 +749,8 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         onTogglePlayback={togglePlayback}
         onStepBack={stepBackward}
         onStepForward={stepForward}
+        loopMode={loopMode}
+        onLoopModeChange={setLoopMode}
         zoom={zoom}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
