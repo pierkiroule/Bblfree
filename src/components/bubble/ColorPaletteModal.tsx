@@ -101,7 +101,7 @@ export default function ColorPaletteModal({
         </p>
 
         {/* Color grid */}
-        <div className="grid grid-cols-6 gap-2 py-4 max-h-60 overflow-y-auto">
+        <div className="grid grid-cols-6 gap-2 py-4 max-h-[7.5rem] overflow-y-auto">
           {ALL_COLORS.map((color) => {
             const isInPalette = tempColors.includes(color);
             

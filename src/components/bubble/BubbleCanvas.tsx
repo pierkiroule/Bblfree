@@ -7,6 +7,7 @@ import { useGifExport } from '@/hooks/useGifExport';
 import { renderStroke, StampType, TextFontKey } from './BrushRenderer';
 import BrushToolbar from './BrushToolbar';
 import ColorToolbar from './ColorToolbar';
+import { Slider } from '@/components/ui/slider';
 import ColorPaletteModal from './ColorPaletteModal';
 import BottomControls from './BottomControls';
 import ExportDialog from './ExportDialog';
@@ -639,24 +640,56 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-3xl mx-auto px-4">
       {/* Toolbars */}
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        <BrushToolbar
-          brushMode={brushMode}
-          stampType={stampType}
-          customText={customText}
-          textFont={textFont}
-          activeColor={brushColor}
-          onBrushModeChange={setBrushMode}
-          onStampTypeChange={setStampType}
-          onCustomTextChange={setCustomText}
-          onTextFontChange={setTextFont}
-        />
-        <ColorToolbar
-          colors={paletteColors}
-          activeColor={brushColor}
-          onColorChange={setBrushColor}
-          onOpenPalette={() => setShowPaletteModal(true)}
-        />
+      <div className="flex flex-col items-center gap-3 w-full">
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <BrushToolbar
+            brushMode={brushMode}
+            stampType={stampType}
+            customText={customText}
+            textFont={textFont}
+            activeColor={brushColor}
+            onBrushModeChange={setBrushMode}
+            onStampTypeChange={setStampType}
+            onCustomTextChange={setCustomText}
+            onTextFontChange={setTextFont}
+          />
+          <ColorToolbar
+            colors={paletteColors}
+            activeColor={brushColor}
+            onColorChange={setBrushColor}
+            onOpenPalette={() => setShowPaletteModal(true)}
+          />
+        </div>
+
+        <div className="w-full max-w-2xl">
+          <div className="flex items-center gap-4 px-4 py-2 bg-card/80 rounded-xl border shadow-sm">
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-xs w-12">Taille</span>
+              <Slider
+                value={[brushSize]}
+                min={4}
+                max={40}
+                step={1}
+                onValueChange={(v) => setBrushSize(v[0])}
+              />
+              <span className="text-xs w-8">{brushSize}px</span>
+            </div>
+
+            <div className="w-px h-6 bg-border" />
+
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-xs w-12">Opacité</span>
+              <Slider
+                value={[brushOpacity * 100]}
+                min={10}
+                max={100}
+                step={5}
+                onValueChange={(v) => setBrushOpacity(v[0] / 100)}
+              />
+              <span className="text-xs w-8">{Math.round(brushOpacity * 100)}%</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Canvas Container */}
@@ -730,10 +763,6 @@ onStartMic={startMic}
 onImportAudio={loadAudioFile}
 onStopAudio={stop}
 audioSource={source}
-        brushSize={brushSize}
-        brushOpacity={brushOpacity}
-        onBrushSizeChange={setBrushSize}
-        onBrushOpacityChange={setBrushOpacity}
       />
 
       {/* Color Palette Modal */}
