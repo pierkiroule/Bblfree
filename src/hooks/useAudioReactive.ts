@@ -11,6 +11,11 @@ export interface AudioData {
    * Mixes spectral energy with overall loudness for a stable signal.
    */
   energy: number;
+  /**
+   * Beat envelope derived from energy with fast attack and slow release.
+   * Provides a more pronounced yet stable modulation curve.
+   */
+  beatEnvelope: number;
 }
 
 type AudioSourceType = 'mic' | 'file' | null;
@@ -33,8 +38,10 @@ export function useAudioReactive({
     treble: 0,
     frequencies: [],
     energy: 0,
+    beatEnvelope: 0,
   });
   const energyRef = useRef(0);
+  const beatEnvelopeRef = useRef(0);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -83,7 +90,24 @@ export function useAudioReactive({
     const smoothedEnergy = energyRef.current + (rawEnergy - energyRef.current) * 0.35;
     energyRef.current = smoothedEnergy;
 
-    setAudioData({ volume, bass, mid, treble, frequencies, energy: smoothedEnergy });
+    // Beat envelope: fast attack, slow release for clear pulse emphasis
+    const attack = 0.75;
+    const release = 0.035;
+    const currentEnvelope = beatEnvelopeRef.current;
+    const target = smoothedEnergy;
+    const envelopeDelta = target - currentEnvelope;
+    const nextEnvelope = currentEnvelope + envelopeDelta * (envelopeDelta > 0 ? attack : release);
+    beatEnvelopeRef.current = nextEnvelope;
+
+    setAudioData({
+      volume,
+      bass,
+      mid,
+      treble,
+      frequencies,
+      energy: smoothedEnergy,
+      beatEnvelope: nextEnvelope,
+    });
     rafRef.current = requestAnimationFrame(analyze);
   }, []);
 
@@ -188,6 +212,7 @@ export function useAudioReactive({
     setIsListening(false);
     setSource(null);
     energyRef.current = 0;
+    beatEnvelopeRef.current = 0;
     setAudioData({
       volume: 0,
       bass: 0,
@@ -195,6 +220,7 @@ export function useAudioReactive({
       treble: 0,
       frequencies: [],
       energy: 0,
+      beatEnvelope: 0,
     });
   }, []);
 
