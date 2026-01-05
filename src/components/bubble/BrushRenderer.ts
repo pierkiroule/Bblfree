@@ -1,3 +1,4 @@
+import type { StampImageData } from '@/lib/imageStamp';
 import { LoopStroke, LoopPoint, BrushMode } from '@/hooks/useLoopTime';
 
 // Stamp shapes
@@ -8,6 +9,7 @@ export const STAMPS = {
   sparkle: '✦',
   flower: '✿',
   moon: '☽',
+  image: '🖼',
   text: 'Aa', // Special marker for custom text stamp
 } as const;
 
@@ -15,6 +17,7 @@ export type StampType = keyof typeof STAMPS;
 
 // Custom text stamp value
 export const TEXT_STAMP_KEY = 'text' as const;
+export const IMAGE_STAMP_KEY = 'image' as const;
 
 // Available fonts for text stamps
 export const TEXT_FONTS = {
@@ -357,7 +360,8 @@ function drawStampStroke(
   offsetY: number,
   stampType: StampType,
   customText?: string,
-  textFont?: string
+  textFont?: string,
+  imageStamp?: StampImageData | null
 ) {
   if (points.length === 0) return;
 
@@ -368,9 +372,15 @@ function drawStampStroke(
 
   // Use custom text for text stamp, otherwise use predefined stamp
   const isTextStamp = stampType === TEXT_STAMP_KEY;
+  const isImageStamp = stampType === IMAGE_STAMP_KEY;
   
   // If text stamp but no custom text, don't draw anything
   if (isTextStamp && (!customText || customText.trim() === '')) {
+    ctx.restore();
+    return;
+  }
+
+  if (isImageStamp && !imageStamp) {
     ctx.restore();
     return;
   }
@@ -388,19 +398,48 @@ function drawStampStroke(
     ? (isPixelFont ? width * 1.2 : width * 2) 
     : width * 3;
   ctx.font = `bold ${fontSize}px ${fontFamily}`;
+
+  const renderImageSticker = (x: number, y: number, rotation: number) => {
+    if (!imageStamp) return;
+    const size = width * 5.2;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+
+    // Base monochrome mask
+    ctx.drawImage(imageStamp.source, -size / 2, -size / 2, size, size);
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = color;
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+
+    // Silkscreen highlight
+    ctx.globalCompositeOperation = 'overlay';
+    const highlight = ctx.createRadialGradient(0, 0, size * 0.08, 0, 0, size * 0.65);
+    highlight.addColorStop(0, 'rgba(255,255,255,0.24)');
+    highlight.addColorStop(1, 'rgba(0,0,0,0.18)');
+    ctx.fillStyle = highlight;
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+  };
   
   // For single point (single click), just draw one stamp
   if (points.length === 1) {
     const x = points[0].x + centerX + offsetX;
     const y = points[0].y + centerY + offsetY;
-    ctx.fillText(stamp, x, y);
+    if (isImageStamp) {
+      renderImageSticker(x, y, 0);
+    } else {
+      ctx.fillText(stamp, x, y);
+    }
     ctx.restore();
     return;
   }
   
   // Only draw stamp every few points to avoid overcrowding
   // More spacing for text stamps since they're wider
-  const baseSpacing = isTextStamp ? 30 : 20;
+  const baseSpacing = isTextStamp || isImageStamp ? 30 : 20;
   const spacing = Math.max(1, Math.floor(points.length / baseSpacing));
   
   points.forEach((point, i) => {
@@ -410,14 +449,18 @@ function drawStampStroke(
     const y = point.y + centerY + offsetY;
     
     // Rotation based on position along stroke (gentler for text)
-    const rotationIntensity = isTextStamp ? 0.15 : 0.3;
+    const rotationIntensity = isTextStamp ? 0.15 : isImageStamp ? 0.2 : 0.3;
     const rotation = (i * rotationIntensity) % (Math.PI * 2);
     
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rotation);
-    ctx.fillText(stamp, 0, 0);
-    ctx.restore();
+    if (isImageStamp) {
+      renderImageSticker(x, y, rotation);
+    } else {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+      ctx.fillText(stamp, 0, 0);
+      ctx.restore();
+    }
   });
 
   ctx.restore();
@@ -459,7 +502,8 @@ export function renderStroke(
         centerX, centerY, offsetX, offsetY,
         (stroke.stampType as StampType) || 'star',
         stroke.customText,
-        stroke.textFont
+        stroke.textFont,
+        stroke.imageStamp
       );
       break;
     case 'eraser':

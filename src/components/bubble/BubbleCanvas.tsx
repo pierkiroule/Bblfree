@@ -4,7 +4,7 @@ import { useCameraMotion } from '@/hooks/useCameraMotion';
 import { useAudioReactive } from '@/hooks/useAudioReactive';
 import { useGallery } from '@/hooks/useGallery';
 import { useWebpExport } from '@/hooks/useWebpExport';
-import { renderStroke, StampType, TextFontKey } from './BrushRenderer';
+import { renderStroke, StampType, TextFontKey, IMAGE_STAMP_KEY } from './BrushRenderer';
 import BrushToolbar from './BrushToolbar';
 import ColorToolbar from './ColorToolbar';
 import { Slider } from '@/components/ui/slider';
@@ -12,6 +12,7 @@ import ColorPaletteModal from './ColorPaletteModal';
 import BottomControls from './BottomControls';
 import ExportDialog from './ExportDialog';
 import GalleryDialog from './GalleryDialog';
+import { createImageStamp, StampImageData } from '@/lib/imageStamp';
 import { toast } from 'sonner';
 
 interface BubbleCanvasProps {
@@ -36,6 +37,8 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   const [stampType, setStampType] = useState<StampType>('star');
   const [customText, setCustomText] = useState('');
   const [textFont, setTextFont] = useState<TextFontKey>('sans');
+  const [imageStamp, setImageStamp] = useState<StampImageData | null>(null);
+  const [isImportingImage, setIsImportingImage] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -588,10 +591,26 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     const point = getCanvasPoint(e.clientX, e.clientY);
     if (!point) return;
 
+    if (brushMode === 'stamp' && stampType === IMAGE_STAMP_KEY && !imageStamp) {
+      toast.error('Importez une image pour créer un sticker animé.');
+      return;
+    }
+
     // Eraser uses white color and full opacity
     const color = brushMode === 'eraser' ? '#ffffff' : brushColor;
     const opacity = brushMode === 'eraser' ? 1 : brushOpacity;
-    const stroke = startStroke(point.x, point.y, color, brushSize, opacity, brushMode, stampType, customText, textFont);
+    const stroke = startStroke(
+      point.x,
+      point.y,
+      color,
+      brushSize,
+      opacity,
+      brushMode,
+      stampType,
+      customText,
+      textFont,
+      imageStamp
+    );
 
     // For stamp mode, end stroke immediately (single stamp per click)
     if (brushMode === 'stamp') {
@@ -601,7 +620,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
 
     setIsDrawing(true);
     canvasRef.current?.setPointerCapture(e.pointerId);
-  }, [getCanvasPoint, startStroke, endStroke, brushColor, brushSize, brushOpacity, brushMode, stampType, customText, textFont]);
+  }, [getCanvasPoint, startStroke, endStroke, brushColor, brushSize, brushOpacity, brushMode, stampType, customText, textFont, imageStamp]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (isPanning) {
@@ -644,6 +663,21 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     };
   }, [stop]);
 
+  const handleImportStampImage = useCallback(async (file: File) => {
+    setIsImportingImage(true);
+    try {
+      const processed = await createImageStamp(file);
+      setImageStamp(processed);
+      setStampType(IMAGE_STAMP_KEY);
+      toast.success('Image convertie en gommette circulaire !');
+    } catch (error) {
+      console.error('Image import failed:', error);
+      toast.error('Impossible de charger cette image');
+    } finally {
+      setIsImportingImage(false);
+    }
+  }, []);
+
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-3xl mx-auto px-4">
       {/* Toolbars */}
@@ -659,6 +693,9 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
             onStampTypeChange={setStampType}
             onCustomTextChange={setCustomText}
             onTextFontChange={setTextFont}
+            onImportImage={handleImportStampImage}
+            isImportingImage={isImportingImage}
+            imageStamp={imageStamp}
           />
           <ColorToolbar
             colors={paletteColors}
