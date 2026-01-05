@@ -16,6 +16,18 @@ export type StampType = keyof typeof STAMPS;
 // Custom text stamp value
 export const TEXT_STAMP_KEY = 'text' as const;
 
+// Available fonts for text stamps
+export const TEXT_FONTS = {
+  sans: { name: 'Sans-serif', family: 'sans-serif' },
+  caveat: { name: 'Manuscrite', family: 'Caveat' },
+  playfair: { name: 'Élégante', family: 'Playfair Display' },
+  marker: { name: 'Marqueur', family: 'Permanent Marker' },
+  pixel: { name: 'Pixel', family: 'Press Start 2P' },
+  satisfy: { name: 'Cursive', family: 'Satisfy' },
+} as const;
+
+export type TextFontKey = keyof typeof TEXT_FONTS;
+
 // Draw a basic pencil stroke
 function drawPencilStroke(
   ctx: CanvasRenderingContext2D,
@@ -205,7 +217,8 @@ function drawStampStroke(
   offsetX: number,
   offsetY: number,
   stampType: StampType,
-  customText?: string
+  customText?: string,
+  textFont?: string
 ) {
   if (points.length === 0) return;
 
@@ -225,9 +238,17 @@ function drawStampStroke(
   
   const stamp = isTextStamp ? customText! : (STAMPS[stampType] || STAMPS.star);
   
-  // Adjust font size for text stamps (smaller for readability)
-  const fontSize = isTextStamp ? width * 2 : width * 3;
-  ctx.font = `bold ${fontSize}px sans-serif`;
+  // Get font family for text stamps
+  const fontFamily = isTextStamp && textFont && TEXT_FONTS[textFont as TextFontKey]
+    ? TEXT_FONTS[textFont as TextFontKey].family
+    : 'sans-serif';
+  
+  // Adjust font size for text stamps (smaller for readability, even smaller for pixel font)
+  const isPixelFont = textFont === 'pixel';
+  const fontSize = isTextStamp 
+    ? (isPixelFont ? width * 1.2 : width * 2) 
+    : width * 3;
+  ctx.font = `bold ${fontSize}px ${fontFamily}`;
   
   // For single point (single click), just draw one stamp
   if (points.length === 1) {
@@ -297,7 +318,8 @@ export function renderStroke(
         ctx, stroke.points, stroke.color, stroke.width,
         centerX, centerY, offsetX, offsetY,
         (stroke.stampType as StampType) || 'star',
-        stroke.customText
+        stroke.customText,
+        stroke.textFont
       );
       break;
     case 'eraser':
