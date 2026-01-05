@@ -1,6 +1,6 @@
 # BubbleLoop 🫧
 
-> Dessinez • Bouclez • Flottez
+> Dessinez • Résonnez • Partager
 
 Application créative de dessin de bulles animées.
 
