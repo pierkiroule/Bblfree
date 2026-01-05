@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BubbleLoopLogo from '../components/BubbleLoopLogo';
 import FeaturesModal from '../components/FeaturesModal';
-
+import TutorialModal from '../components/TutorialModal';
 const PUNCHLINES = [
   'Une adaptation transnumériste du squiggle de Winnicott.',
   'Un dispositif de co-création fondé sur l\'aire transitionnelle.',
@@ -24,6 +24,7 @@ interface HomeViewProps {
 export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
   const [punchlineIndex, setPunchlineIndex] = useState(0);
   const [showFeaturesModal, setShowFeaturesModal] = useState(false);
+  const [showTutorialModal, setShowTutorialModal] = useState(false);
   useEffect(() => {
     const id = setInterval(() => {
       setPunchlineIndex((prev) => (prev + 1) % PUNCHLINES.length);
@@ -115,10 +116,20 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
         >
           Fonctionnalités – Démo & futur
         </button>
+
+        <button
+          onClick={() => setShowTutorialModal(true)}
+          className="text-amber-600 font-bold text-sm mt-1 hover:text-amber-500 transition-colors underline underline-offset-2"
+        >
+          Mini-tuto : Comment ça marche ?
+        </button>
       </motion.div>
 
       {/* Features Modal */}
       <FeaturesModal open={showFeaturesModal} onOpenChange={setShowFeaturesModal} />
+
+      {/* Tutorial Modal */}
+      <TutorialModal open={showTutorialModal} onOpenChange={setShowTutorialModal} />
 
       {/* Concept Card */}
       <motion.div
