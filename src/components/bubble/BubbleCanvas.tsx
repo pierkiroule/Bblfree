@@ -483,6 +483,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     // Eraser uses white color and full opacity
     const color = brushMode === 'eraser' ? '#ffffff' : brushColor;
     const opacity = brushMode === 'eraser' ? 1 : brushOpacity;
+    console.log('DEBUG startStroke - customText:', customText, 'stampType:', stampType, 'textFont:', textFont);
     startStroke(point.x, point.y, color, brushSize, opacity, brushMode, stampType, customText, textFont);
 
     // For stamp mode, end stroke immediately (single stamp per click)
