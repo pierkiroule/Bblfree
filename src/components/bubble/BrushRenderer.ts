@@ -8,9 +8,13 @@ export const STAMPS = {
   sparkle: '✦',
   flower: '✿',
   moon: '☽',
+  text: 'Aa', // Special marker for custom text stamp
 } as const;
 
 export type StampType = keyof typeof STAMPS;
+
+// Custom text stamp value
+export const TEXT_STAMP_KEY = 'text' as const;
 
 // Draw a basic pencil stroke
 function drawPencilStroke(
@@ -200,17 +204,23 @@ function drawStampStroke(
   centerY: number,
   offsetX: number,
   offsetY: number,
-  stampType: StampType
+  stampType: StampType,
+  customText?: string
 ) {
   if (points.length === 0) return;
 
   ctx.save();
   ctx.fillStyle = color;
-  ctx.font = `${width * 3}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  const stamp = STAMPS[stampType] || STAMPS.star;
+  // Use custom text for text stamp, otherwise use predefined stamp
+  const isTextStamp = stampType === TEXT_STAMP_KEY && customText;
+  const stamp = isTextStamp ? customText : (STAMPS[stampType] || STAMPS.star);
+  
+  // Adjust font size for text stamps (smaller for readability)
+  const fontSize = isTextStamp ? width * 2 : width * 3;
+  ctx.font = `bold ${fontSize}px sans-serif`;
   
   // For single point (single click), just draw one stamp
   if (points.length === 1) {
@@ -222,7 +232,9 @@ function drawStampStroke(
   }
   
   // Only draw stamp every few points to avoid overcrowding
-  const spacing = Math.max(1, Math.floor(points.length / 20));
+  // More spacing for text stamps since they're wider
+  const baseSpacing = isTextStamp ? 30 : 20;
+  const spacing = Math.max(1, Math.floor(points.length / baseSpacing));
   
   points.forEach((point, i) => {
     if (i % spacing !== 0 && i !== 0 && i !== points.length - 1) return;
@@ -230,8 +242,8 @@ function drawStampStroke(
     const x = point.x + centerX + offsetX;
     const y = point.y + centerY + offsetY;
     
-    // Slight rotation for visual interest
-    const rotation = (i * 0.3) % (Math.PI * 2);
+    // Slight rotation for visual interest (less rotation for text)
+    const rotation = isTextStamp ? 0 : (i * 0.3) % (Math.PI * 2);
     
     ctx.save();
     ctx.translate(x, y);
@@ -276,7 +288,8 @@ export function renderStroke(
       drawStampStroke(
         ctx, stroke.points, stroke.color, stroke.width,
         centerX, centerY, offsetX, offsetY,
-        (stroke.stampType as StampType) || 'star'
+        (stroke.stampType as StampType) || 'star',
+        stroke.customText
       );
       break;
     case 'eraser':
