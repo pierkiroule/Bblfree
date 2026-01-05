@@ -215,8 +215,15 @@ function drawStampStroke(
   ctx.textBaseline = 'middle';
 
   // Use custom text for text stamp, otherwise use predefined stamp
-  const isTextStamp = stampType === TEXT_STAMP_KEY && customText;
-  const stamp = isTextStamp ? customText : (STAMPS[stampType] || STAMPS.star);
+  const isTextStamp = stampType === TEXT_STAMP_KEY;
+  
+  // If text stamp but no custom text, don't draw anything
+  if (isTextStamp && (!customText || customText.trim() === '')) {
+    ctx.restore();
+    return;
+  }
+  
+  const stamp = isTextStamp ? customText! : (STAMPS[stampType] || STAMPS.star);
   
   // Adjust font size for text stamps (smaller for readability)
   const fontSize = isTextStamp ? width * 2 : width * 3;
