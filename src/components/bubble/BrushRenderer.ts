@@ -271,9 +271,34 @@ function drawParticleStroke(
   centerY: number,
   offsetX: number,
   offsetY: number,
-  time: number
+  time: number,
+  audioReactive?: StrokeAudioReactiveData
 ) {
   ctx.save();
+
+  const pseudoRandom = (seed: number) => {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  };
+
+  const smoothStep = (t: number) => t * t * (3 - 2 * t);
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+  const makeOffset = (seed: number, segment: number, maxDist: number) => {
+    const angle = pseudoRandom(seed * 0.37 + segment * 11.17) * Math.PI * 2;
+    const magnitude = pseudoRandom(seed * 0.91 + segment * 7.31) * maxDist;
+    return {
+      x: Math.cos(angle) * magnitude,
+      y: Math.sin(angle) * magnitude,
+    };
+  };
+
+  const slowTime = time * 0.35;
+  const segment = Math.floor(slowTime);
+  const segmentT = smoothStep(slowTime - segment);
+  const bassLevel = audioReactive?.volume ?? 0;
+  const bassPulse = Math.max(0, bassLevel - 0.35);
+  const bassBoost = Math.min(1, bassPulse * 1.6);
 
   // Generate particles at each point with some randomness
   points.forEach((point, i) => {
@@ -281,19 +306,31 @@ function drawParticleStroke(
     const seed = i * 1000;
     
     for (let p = 0; p < particleCount; p++) {
-      // Pseudo-random offset based on seed
-      const angle = ((seed + p * 137.5) % 360) * (Math.PI / 180);
-      const dist = ((seed + p * 73.2) % (width * 2));
-      const size = (width * 0.3) + ((seed + p * 23.7) % (width * 0.5));
+      const particleSeed = seed + p * 137.5;
+      const maxOffset =
+        width * 0.9 *
+        (0.7 + pseudoRandom(particleSeed * 0.13) * 0.3) +
+        width * 1.4 * bassBoost;
+
+      const startOffset = makeOffset(particleSeed, segment, maxOffset);
+      const endOffset = makeOffset(particleSeed, segment + 1, maxOffset);
+      const offset = {
+        x: lerp(startOffset.x, endOffset.x, segmentT),
+        y: lerp(startOffset.y, endOffset.y, segmentT),
+      };
+
+      const dist = Math.hypot(offset.x, offset.y);
+      const sizeBase = width * 0.25 + pseudoRandom(particleSeed * 0.71) * width * 0.15;
+      const size = Math.max(
+        1,
+        sizeBase + (width * 0.4 + width * 0.6 * bassBoost) * pseudoRandom(particleSeed * 0.21)
+      );
       
-      // Animate particles slightly
-      const animOffset = Math.sin(time * 3 + seed + p) * 2;
-      
-      const px = point.x + centerX + offsetX + Math.cos(angle) * (dist + animOffset);
-      const py = point.y + centerY + offsetY + Math.sin(angle) * (dist + animOffset);
+      const px = point.x + centerX + offsetX + offset.x;
+      const py = point.y + centerY + offsetY + offset.y;
       
       // Alpha based on distance from center
-      const alpha = 0.3 + (1 - dist / (width * 2)) * 0.7;
+      const alpha = 0.25 + (1 - dist / Math.max(1, maxOffset)) * 0.6;
       
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -413,7 +450,7 @@ export function renderStroke(
     case 'particles':
       drawParticleStroke(
         ctx, stroke.points, stroke.color, stroke.width,
-        centerX, centerY, offsetX, offsetY, time
+        centerX, centerY, offsetX, offsetY, time, audioReactive
       );
       break;
     case 'stamp':
