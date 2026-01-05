@@ -101,16 +101,24 @@ export function useGifExport() {
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.globalAlpha = 0.25;
+      ctx.globalAlpha = 0.35;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
 
       // Main title
       ctx.font = 'bold 24px sans-serif';
       ctx.fillStyle = '#6366f1';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 4;
+      ctx.strokeText('Démo BubbleLoop', width / 2, height / 2 - 12);
       ctx.fillText('Démo BubbleLoop', width / 2, height / 2 - 12);
 
       // Subtitle
       ctx.font = '14px sans-serif';
       ctx.fillStyle = '#8b5cf6';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 3;
+      ctx.strokeText('Version en cours de finalisation', width / 2, height / 2 + 14);
       ctx.fillText('Version en cours de finalisation', width / 2, height / 2 + 14);
       ctx.restore();
 
