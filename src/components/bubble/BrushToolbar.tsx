@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Pencil, Sparkles, CircleDot, Stamp, Eraser, Type, Check } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Pencil, Sparkles, CircleDot, Stamp, Eraser, Type, Check, ImageDown } from 'lucide-react';
 import { BrushMode } from '@/hooks/useLoopTime';
-import { STAMPS, StampType, TEXT_STAMP_KEY, TEXT_FONTS, TextFontKey } from './BrushRenderer';
+import { STAMPS, StampType, TEXT_STAMP_KEY, TEXT_FONTS, TextFontKey, IMAGE_STAMP_KEY } from './BrushRenderer';
+import type { StampImageData } from '@/lib/imageStamp';
 
 interface BrushToolbarProps {
   brushMode: BrushMode;
@@ -9,10 +10,13 @@ interface BrushToolbarProps {
   customText: string;
   textFont: TextFontKey;
   activeColor: string;
+  imageStamp: StampImageData | null;
+  isImportingImage: boolean;
   onBrushModeChange: (mode: BrushMode) => void;
   onStampTypeChange: (stamp: StampType) => void;
   onCustomTextChange: (text: string) => void;
   onTextFontChange: (font: TextFontKey) => void;
+  onImportImage: (file: File) => void;
 }
 
 const BRUSH_MODES: { mode: BrushMode; icon: typeof Pencil; label: string }[] = [
@@ -29,11 +33,15 @@ export default function BrushToolbar({
   customText,
   textFont,
   activeColor,
+  imageStamp,
+  isImportingImage,
   onBrushModeChange,
   onStampTypeChange,
   onCustomTextChange,
   onTextFontChange,
+  onImportImage,
 }: BrushToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputText, setInputText] = useState(customText);
   const stampTypes = Object.keys(STAMPS) as StampType[];
   const showStamps = brushMode === 'stamp';
@@ -46,6 +54,16 @@ export default function BrushToolbar({
       onCustomTextChange(inputText.trim());
     }
   };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      onImportImage(file);
+      event.target.value = '';
+    }
+  };
+
+  const openFilePicker = () => fileInputRef.current?.click();
   return (
     <div className="flex flex-col items-center gap-2">
       {/* Brush modes */}
@@ -79,6 +97,7 @@ export default function BrushToolbar({
         <div className="flex items-center gap-1 p-1.5 rounded-full bg-card/80 backdrop-blur-sm border border-border shadow-lg">
           {stampTypes.map((stamp) => {
             const isTextStamp = stamp === TEXT_STAMP_KEY;
+            const isImageStamp = stamp === IMAGE_STAMP_KEY;
             return (
               <button
                 key={stamp}
@@ -92,12 +111,51 @@ export default function BrushToolbar({
                   }
                 `}
                 style={{ color: activeColor }}
-                title={isTextStamp ? 'Texte personnalisé' : stamp}
+                title={isTextStamp ? 'Texte personnalisé' : isImageStamp ? 'Sticker image' : stamp}
               >
-                {isTextStamp ? <Type className="w-4 h-4" /> : STAMPS[stamp]}
+                {isTextStamp ? (
+                  <Type className="w-4 h-4" />
+                ) : isImageStamp && imageStamp?.previewUrl ? (
+                  <span className="w-8 h-8 rounded-full overflow-hidden border border-border bg-accent/40 flex items-center justify-center">
+                    <img
+                      src={imageStamp.previewUrl}
+                      alt="Aperçu sticker"
+                      className="w-full h-full object-cover"
+                    />
+                  </span>
+                ) : isImageStamp ? (
+                  <ImageDown className="w-4 h-4" />
+                ) : (
+                  STAMPS[stamp]
+                )}
               </button>
             );
           })}
+          <div className="ml-2 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={openFilePicker}
+              disabled={isImportingImage}
+              className={`
+                w-9 h-9 rounded-lg border
+                flex items-center justify-center transition-colors
+                ${isImportingImage
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                }
+              `}
+              title="Importer une image"
+            >
+              <ImageDown className={`w-4 h-4 ${isImportingImage ? 'animate-pulse' : ''}`} />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </div>
         </div>
       )}
 

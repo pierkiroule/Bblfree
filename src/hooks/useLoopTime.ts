@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import type { StampImageData } from '@/lib/imageStamp';
 
 export type BrushMode = 'pencil' | 'glow' | 'particles' | 'stamp' | 'eraser';
 export type LoopMode = 'loop' | 'ping-pong';
@@ -19,6 +20,7 @@ export interface LoopStroke {
   stampType?: string;
   customText?: string;
   textFont?: string;
+  imageStamp?: StampImageData | null;
 }
 
 interface UseLoopTimeOptions {
@@ -108,7 +110,8 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     mode: BrushMode = 'pencil',
     stampType?: string,
     customText?: string,
-    textFont?: string
+    textFont?: string,
+    imageStamp?: StampImageData | null
   ): LoopStroke => {
     const t = getNormalizedTime();
     const stroke: LoopStroke = {
@@ -120,6 +123,7 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
       stampType,
       customText,
       textFont,
+      imageStamp,
     };
     setCurrentStroke(stroke);
     return stroke;
