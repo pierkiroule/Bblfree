@@ -76,6 +76,10 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
           Dessinez en harmonie.  
           Vos traits s’animent en boucle au rythme de la musique.
         </p>
+        <p className="text-xs text-slate-400">
+          BubbleLoop est un outil créatif expérimental.  
+          Ce n’est pas un dispositif médical ou thérapeutique.
+        </p>
 
         {/* ICON GRID */}
         <div className="grid grid-cols-3 gap-5 w-full max-w-sm my-6">
@@ -151,6 +155,12 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
           <button onClick={() => setShowUseCasesModal(true)} className="text-emerald-600 font-bold text-sm underline">
             Cas d’usage
           </button>
+          <a
+            href="/cgu"
+            className="text-xs text-slate-400 hover:text-slate-600 underline"
+          >
+            Conditions Générales d’Utilisation
+          </a>
         </div>
       </motion.div>
 
