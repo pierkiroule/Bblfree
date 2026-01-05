@@ -330,7 +330,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       }
       ctx.restore();
 
-      // === MICRO-BUBBLES AUDIO-REACTIVE EFFECT ===
+      // === MICRO-BUBBLES AUDIO-REACTIVE EFFECT WITH DISPERSION ===
       if (isListening && audioData.volume > 0.05) {
         // Collect colors from strokes (or use defaults)
         const strokeColors = visibleStrokes
@@ -340,48 +340,68 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           ? strokeColors 
           : ['#6366f1', '#ec4899', '#f97316', '#22c55e', '#06b6d4'];
 
-        // Generate micro-bubbles around the border
-        const bubbleCount = Math.floor(12 + audioData.volume * 20);
+        const bubbleCount = Math.floor(16 + audioData.volume * 24);
         const time = timeRef.current;
 
         for (let i = 0; i < bubbleCount; i++) {
-          // Pseudo-random but stable position per bubble
+          // Each bubble has its own lifecycle (3-6 seconds)
           const seed = i * 137.5;
+          const lifecycleDuration = 3 + (seed % 30) / 10; // 3-6 seconds
+          const bubbleTime = (time + seed / 50) % lifecycleDuration;
+          const lifecycleProgress = bubbleTime / lifecycleDuration; // 0 to 1
+
+          // Fixed angle per bubble (stable position on the ring)
           const baseAngle = ((seed % 360) / 360) * Math.PI * 2;
-          // Rotate slowly over time
-          const angle = baseAngle + time * 0.3 + Math.sin(time * 2 + i) * 0.2;
+          // Slight wobble as it escapes
+          const wobble = Math.sin(time * 3 + i * 2) * 0.15 * lifecycleProgress;
+          const angle = baseAngle + wobble;
+
+          // Distance: starts at border, escapes outward progressively
+          const startDist = dimensions.radius + 2;
+          const maxEscape = 40 + (seed % 20); // Max distance to travel
+          const escapeEase = 1 - Math.pow(1 - lifecycleProgress, 2); // Ease out
+          const escapeDist = escapeEase * maxEscape;
           
-          // Audio-reactive distance from center
+          // Audio makes them jump/pulse
           const freqIndex = i % audioData.frequencies.length;
           const freqValue = audioData.frequencies[freqIndex] || 0;
-          const baseDist = dimensions.radius + 8 + (seed % 15);
-          const audioDist = freqValue * 25 + audioData.bass * 15;
-          const dist = baseDist + audioDist + Math.sin(time * 4 + i * 0.5) * 3;
+          const audioPush = freqValue * 15 + audioData.bass * 8;
+          
+          const dist = startDist + escapeDist + audioPush;
 
           // Position
           const bx = dimensions.width / 2 + Math.cos(angle) * dist;
           const by = dimensions.height / 2 + Math.sin(angle) * dist;
 
-          // Size: small, pulsing with audio
-          const baseSize = 1.5 + (seed % 3);
-          const pulseSize = baseSize + freqValue * 4 + audioData.treble * 2;
+          // Size: starts small, grows slightly, then shrinks as it fades
+          const baseSize = 1 + (seed % 2.5);
+          const sizeLifecycle = lifecycleProgress < 0.3 
+            ? lifecycleProgress / 0.3 // Grow in
+            : 1 - (lifecycleProgress - 0.3) / 0.7 * 0.6; // Shrink out
+          const audioSize = freqValue * 3 + audioData.treble * 1.5;
+          const finalSize = (baseSize + audioSize) * sizeLifecycle;
 
           // Color from strokes
           const color = bubbleColors[i % bubbleColors.length];
 
-          // Alpha: subtle, reacts to volume
-          const alpha = 0.3 + audioData.volume * 0.4 + freqValue * 0.3;
+          // Alpha: fade in quickly, fade out as it escapes
+          const fadeIn = Math.min(1, lifecycleProgress * 5); // Quick fade in
+          const fadeOut = 1 - Math.pow(lifecycleProgress, 1.5); // Gradual fade out
+          const audioAlpha = 0.2 + audioData.volume * 0.3 + freqValue * 0.2;
+          const alpha = fadeIn * fadeOut * audioAlpha;
+
+          if (alpha < 0.02 || finalSize < 0.3) continue;
 
           ctx.save();
-          ctx.globalAlpha = Math.min(alpha, 0.85);
+          ctx.globalAlpha = Math.min(alpha, 0.75);
           ctx.fillStyle = color;
           
           // Soft glow effect
-          ctx.shadowBlur = pulseSize * 2;
+          ctx.shadowBlur = finalSize * 2.5;
           ctx.shadowColor = color;
 
           ctx.beginPath();
-          ctx.arc(bx, by, pulseSize, 0, Math.PI * 2);
+          ctx.arc(bx, by, Math.max(0.5, finalSize), 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
         }
