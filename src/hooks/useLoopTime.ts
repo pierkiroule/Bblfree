@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 export type BrushMode = 'pencil' | 'glow' | 'particles' | 'stamp' | 'eraser';
+export type LoopMode = 'loop' | 'ping-pong';
 
 export interface LoopPoint {
   x: number;
@@ -23,34 +24,70 @@ export interface LoopStroke {
 interface UseLoopTimeOptions {
   loopDuration?: number; // in milliseconds
   autoPlay?: boolean;
+  initialMode?: LoopMode;
 }
 
 export function useLoopTime(options: UseLoopTimeOptions = {}) {
-  const { loopDuration = 10000, autoPlay = true } = options;
+  const { loopDuration = 10000, autoPlay = true, initialMode = 'loop' } = options;
   
   const [strokes, setStrokes] = useState<LoopStroke[]>([]);
   const [currentStroke, setCurrentStroke] = useState<LoopStroke | null>(null);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [loopProgress, setLoopProgress] = useState(0);
   const [manualProgress, setManualProgress] = useState<number | null>(null);
+  const [loopMode, setLoopModeState] = useState<LoopMode>(initialMode);
   
   // Undo/Redo history
   const [history, setHistory] = useState<LoopStroke[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   
   const loopStartRef = useRef<number>(Date.now());
-  const pauseTimeRef = useRef<number>(0);
+  const directionRef = useRef<1 | -1>(1);
   const animationRef = useRef<number>();
+
+  const getCycleDuration = useCallback((mode: LoopMode = loopMode) => (
+    mode === 'ping-pong' ? loopDuration * 2 : loopDuration
+  ), [loopDuration, loopMode]);
+
+  const getCycleTimeForProgress = useCallback((
+    progress: number,
+    direction: 1 | -1 = 1,
+    mode: LoopMode = loopMode
+  ) => {
+    const clamped = Math.max(0, Math.min(1, progress));
+    if (mode === 'ping-pong') {
+      if (direction === -1) {
+        return loopDuration + (1 - clamped) * loopDuration;
+      }
+      return clamped * loopDuration;
+    }
+    return clamped * loopDuration;
+  }, [loopDuration, loopMode]);
+
+  const getLoopState = useCallback((allowManual = true) => {
+    if (allowManual && !isPlaying && manualProgress !== null) {
+      return { progress: manualProgress, direction: directionRef.current };
+    }
+
+    const cycleDuration = getCycleDuration();
+    const elapsed = Date.now() - loopStartRef.current;
+    const cycleTime = ((elapsed % cycleDuration) + cycleDuration) % cycleDuration;
+
+    if (loopMode === 'ping-pong') {
+      if (cycleTime <= loopDuration) {
+        return { progress: cycleTime / loopDuration, direction: 1 as const };
+      }
+      const backwardTime = cycleTime - loopDuration;
+      return { progress: 1 - backwardTime / loopDuration, direction: -1 as const };
+    }
+
+    return { progress: cycleTime / loopDuration, direction: 1 as const };
+  }, [getCycleDuration, isPlaying, loopMode, loopDuration, manualProgress]);
 
   // Get normalized time (0-1) in the current loop
   const getNormalizedTime = useCallback(() => {
-    // If paused with manual progress, use that
-    if (!isPlaying && manualProgress !== null) {
-      return manualProgress;
-    }
-    const elapsed = Date.now() - loopStartRef.current;
-    return (elapsed % loopDuration) / loopDuration;
-  }, [loopDuration, isPlaying, manualProgress]);
+    return getLoopState().progress;
+  }, [getLoopState]);
 
   // Save state to history
   const saveToHistory = useCallback((newStrokes: LoopStroke[]) => {
@@ -140,22 +177,27 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     saveToHistory([]);
   }, [saveToHistory]);
 
+  const syncLoopStart = useCallback((progress: number, direction: 1 | -1 = 1, mode: LoopMode = loopMode) => {
+    const cycleTime = getCycleTimeForProgress(progress, direction, mode);
+    loopStartRef.current = Date.now() - cycleTime;
+  }, [getCycleTimeForProgress, loopMode]);
+
   // Toggle playback
   const togglePlayback = useCallback(() => {
     setIsPlaying(prev => {
       if (prev) {
-        // Pausing - store current progress
-        pauseTimeRef.current = getNormalizedTime();
-        setManualProgress(pauseTimeRef.current);
-      } else {
-        // Resuming - adjust loop start to continue from pause point
-        const currentProgress = manualProgress ?? pauseTimeRef.current;
-        loopStartRef.current = Date.now() - (currentProgress * loopDuration);
-        setManualProgress(null);
+        const { progress, direction } = getLoopState(false);
+        directionRef.current = direction;
+        setManualProgress(progress);
+        return false;
       }
-      return !prev;
+
+      const resumeProgress = manualProgress ?? getLoopState(false).progress;
+      syncLoopStart(resumeProgress, directionRef.current);
+      setManualProgress(null);
+      return true;
     });
-  }, [getNormalizedTime, manualProgress, loopDuration]);
+  }, [getLoopState, manualProgress, syncLoopStart]);
 
   // Seek to specific progress (0-1)
   const seekTo = useCallback((progress: number) => {
@@ -165,9 +207,11 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     
     // If playing, also update loop start
     if (isPlaying) {
-      loopStartRef.current = Date.now() - (clampedProgress * loopDuration);
+      const { direction } = getLoopState(false);
+      directionRef.current = direction;
+      syncLoopStart(clampedProgress, direction);
     }
-  }, [isPlaying, loopDuration]);
+  }, [getLoopState, isPlaying, syncLoopStart]);
 
   // Step forward/backward
   const stepForward = useCallback(() => {
@@ -181,6 +225,17 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     const current = manualProgress ?? loopProgress;
     seekTo((current - step + 1) % 1);
   }, [manualProgress, loopProgress, seekTo]);
+
+  const setLoopMode = useCallback((mode: LoopMode) => {
+    setLoopModeState(prev => {
+      if (prev === mode) return prev;
+      const { progress, direction } = getLoopState();
+      const nextDirection = mode === 'ping-pong' ? direction : 1;
+      directionRef.current = nextDirection;
+      syncLoopStart(progress, nextDirection, mode);
+      return mode;
+    });
+  }, [getLoopState, syncLoopStart]);
 
   // Animation loop for progress tracking
   useEffect(() => {
@@ -239,6 +294,7 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     addPoint,
     endStroke,
     clearStrokes,
+    loopMode,
     togglePlayback,
     getVisibleStrokes,
     getNormalizedTime,
@@ -247,5 +303,6 @@ export function useLoopTime(options: UseLoopTimeOptions = {}) {
     seekTo,
     stepForward,
     stepBackward,
+    setLoopMode,
   };
 }
