@@ -242,8 +242,9 @@ function drawStampStroke(
     const x = point.x + centerX + offsetX;
     const y = point.y + centerY + offsetY;
     
-    // Slight rotation for visual interest (less rotation for text)
-    const rotation = isTextStamp ? 0 : (i * 0.3) % (Math.PI * 2);
+    // Rotation based on position along stroke (gentler for text)
+    const rotationIntensity = isTextStamp ? 0.15 : 0.3;
+    const rotation = (i * rotationIntensity) % (Math.PI * 2);
     
     ctx.save();
     ctx.translate(x, y);
