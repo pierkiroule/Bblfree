@@ -48,7 +48,7 @@ function drawPencilStroke(
   ctx.restore();
 }
 
-// Draw eraser stroke - draws with the background color
+// Draw eraser stroke - actually erases pixels (works even when glow/filters tint the canvas)
 function drawEraserStroke(
   ctx: CanvasRenderingContext2D,
   points: LoopPoint[],
@@ -56,13 +56,20 @@ function drawEraserStroke(
   centerX: number,
   centerY: number,
   offsetX: number,
-  offsetY: number,
-  backgroundColor: string = '#ffffff'
+  offsetY: number
 ) {
   if (points.length < 2) return;
 
   ctx.save();
-  ctx.strokeStyle = backgroundColor;
+  // Punch a transparent hole in what was drawn before (including glow)
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.globalAlpha = 1;
+  ctx.filter = 'none';
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
+
+  // Color doesn't matter with destination-out, but an opaque stroke is required.
+  ctx.strokeStyle = 'rgba(0, 0, 0, 1)';
   ctx.lineWidth = width;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -244,8 +251,7 @@ export function renderStroke(
   centerY: number,
   offsetX: number,
   offsetY: number,
-  time: number = 0,
-  backgroundColor: string = '#ffffff'
+  time: number = 0
 ) {
   if (stroke.points.length === 0) return;
 
@@ -276,8 +282,7 @@ export function renderStroke(
     case 'eraser':
       drawEraserStroke(
         ctx, stroke.points, stroke.width,
-        centerX, centerY, offsetX, offsetY,
-        backgroundColor
+        centerX, centerY, offsetX, offsetY
       );
       break;
     case 'pencil':
