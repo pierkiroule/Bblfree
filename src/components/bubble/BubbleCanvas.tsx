@@ -205,9 +205,10 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       timeRef.current = (performance.now() - startTime) / 1000;
 
       // Audio reactive values
+      const beatEnvelope = isListening ? audioData.beatEnvelope ?? audioData.energy ?? audioData.volume : 0;
       const audioScale = isListening ? 1 + audioData.bass * 0.15 : 1;
-      const audioGlow = 0;
-      const audioPulse = isListening ? Math.sin(timeRef.current * 8) * audioData.treble * 5 : 0;
+      const audioGlow = beatEnvelope * 0.4;
+      const audioPulse = isListening ? Math.sin(timeRef.current * 8) * (audioData.treble * 5 + beatEnvelope * 4) : 0;
 
       // === PASS 1: Draw background on main canvas ===
       ctx.clearRect(0, 0, dimensions.width, dimensions.height);
@@ -244,7 +245,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       const visibleStrokes = getVisibleStrokes(loopProgress);
       visibleStrokes.forEach((stroke, i) => {
         const freqValue = freqs[i % freqsLen] || 0;
-        const energy = audioData.energy ?? audioData.volume;
+        const energy = audioData.beatEnvelope ?? audioData.energy ?? audioData.volume;
         const strokeScale = isListening
           ? 1 + freqValue * 0.1
           : 1;
@@ -276,7 +277,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
 
       // Draw current stroke on offscreen
       if (currentStroke) {
-        const energy = audioData.energy ?? audioData.volume;
+        const energy = audioData.beatEnvelope ?? audioData.energy ?? audioData.volume;
         const boostedStroke: LoopStroke = {
           ...currentStroke,
           width: currentStroke.width * (1 + energy * 0.3),
@@ -460,8 +461,8 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       }
 
       // === ESCAPING MICRO-BUBBLE JETS HUGGING THE CONTOUR ===
-      if (isListening && audioData.energy > 0.08) {
-        const energy = audioData.energy;
+      if (isListening && (audioData.beatEnvelope ?? audioData.energy) > 0.08) {
+        const energy = audioData.beatEnvelope ?? audioData.energy ?? audioData.volume;
         const jetCount = Math.min(32, Math.floor(12 + energy * 32));
         const ringRadius = dimensions.radius + 8 + audioData.bass * 10;
         const jetTime = timeRef.current;
