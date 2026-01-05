@@ -6,7 +6,6 @@ import {
   Mic, MicOff, Music
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
 import { AudioData } from '@/hooks/useAudioReactive';
 
 interface BottomControlsProps {
@@ -42,12 +41,6 @@ interface BottomControlsProps {
   onStartMic?: () => void;
   onImportAudio?: (file: File) => void;
   onStopAudio?: () => void;
-
-  // Brush
-  brushSize: number;
-  brushOpacity: number;
-  onBrushSizeChange: (size: number) => void;
-  onBrushOpacityChange: (opacity: number) => void;
 }
 
 export default function BottomControls(props: BottomControlsProps) {
@@ -75,10 +68,6 @@ export default function BottomControls(props: BottomControlsProps) {
     onStartMic,
     onImportAudio,
     onStopAudio,
-    brushSize,
-    brushOpacity,
-    onBrushSizeChange,
-    onBrushOpacityChange,
   } = props;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -88,35 +77,6 @@ export default function BottomControls(props: BottomControlsProps) {
 
   return (
     <div className="w-full max-w-2xl space-y-3">
-
-      {/* Brush */}
-      <div className="flex items-center gap-4 px-4 py-2 bg-card/80 rounded-xl border">
-        <div className="flex items-center gap-2 flex-1">
-          <span className="text-xs w-12">Taille</span>
-          <Slider
-            value={[brushSize]}
-            min={4}
-            max={40}
-            step={1}
-            onValueChange={(v) => onBrushSizeChange(v[0])}
-          />
-          <span className="text-xs w-8">{brushSize}px</span>
-        </div>
-
-        <div className="w-px h-6 bg-border" />
-
-        <div className="flex items-center gap-2 flex-1">
-          <span className="text-xs w-12">Opacité</span>
-          <Slider
-            value={[brushOpacity * 100]}
-            min={10}
-            max={100}
-            step={5}
-            onValueChange={(v) => onBrushOpacityChange(v[0] / 100)}
-          />
-          <span className="text-xs w-8">{Math.round(brushOpacity * 100)}%</span>
-        </div>
-      </div>
 
       {/* Timeline */}
       <div className="flex items-center gap-2 px-4 py-2 bg-card/80 rounded-xl border">
