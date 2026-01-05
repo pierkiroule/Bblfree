@@ -330,6 +330,63 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       }
       ctx.restore();
 
+      // === MICRO-BUBBLES AUDIO-REACTIVE EFFECT ===
+      if (isListening && audioData.volume > 0.05) {
+        // Collect colors from strokes (or use defaults)
+        const strokeColors = visibleStrokes
+          .filter(s => s.mode !== 'eraser')
+          .map(s => s.color);
+        const bubbleColors = strokeColors.length > 0 
+          ? strokeColors 
+          : ['#6366f1', '#ec4899', '#f97316', '#22c55e', '#06b6d4'];
+
+        // Generate micro-bubbles around the border
+        const bubbleCount = Math.floor(12 + audioData.volume * 20);
+        const time = timeRef.current;
+
+        for (let i = 0; i < bubbleCount; i++) {
+          // Pseudo-random but stable position per bubble
+          const seed = i * 137.5;
+          const baseAngle = ((seed % 360) / 360) * Math.PI * 2;
+          // Rotate slowly over time
+          const angle = baseAngle + time * 0.3 + Math.sin(time * 2 + i) * 0.2;
+          
+          // Audio-reactive distance from center
+          const freqIndex = i % audioData.frequencies.length;
+          const freqValue = audioData.frequencies[freqIndex] || 0;
+          const baseDist = dimensions.radius + 8 + (seed % 15);
+          const audioDist = freqValue * 25 + audioData.bass * 15;
+          const dist = baseDist + audioDist + Math.sin(time * 4 + i * 0.5) * 3;
+
+          // Position
+          const bx = dimensions.width / 2 + Math.cos(angle) * dist;
+          const by = dimensions.height / 2 + Math.sin(angle) * dist;
+
+          // Size: small, pulsing with audio
+          const baseSize = 1.5 + (seed % 3);
+          const pulseSize = baseSize + freqValue * 4 + audioData.treble * 2;
+
+          // Color from strokes
+          const color = bubbleColors[i % bubbleColors.length];
+
+          // Alpha: subtle, reacts to volume
+          const alpha = 0.3 + audioData.volume * 0.4 + freqValue * 0.3;
+
+          ctx.save();
+          ctx.globalAlpha = Math.min(alpha, 0.85);
+          ctx.fillStyle = color;
+          
+          // Soft glow effect
+          ctx.shadowBlur = pulseSize * 2;
+          ctx.shadowColor = color;
+
+          ctx.beginPath();
+          ctx.arc(bx, by, pulseSize, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
       // Draw loop progress ring with gradient
       ctx.save();
       ctx.beginPath();
