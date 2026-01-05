@@ -223,6 +223,13 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       ctx.scale(zoom, zoom);
       ctx.translate(-dimensions.width / 2, -dimensions.height / 2);
 
+      // Calculate current background color for eraser
+      let currentBgColor = '#ffffff';
+      if (isListening && audioData.volume > 0.1) {
+        const hue = 239 + audioData.mid * 60;
+        currentBgColor = `hsl(${hue}, 30%, 98%)`;
+      }
+
       // Draw visible strokes with camera offset and audio reactivity
       const visibleStrokes = getVisibleStrokes(loopProgress);
       visibleStrokes.forEach((stroke, i) => {
@@ -241,7 +248,8 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           dimensions.height / 2,
           offset.x + audioPulse,
           offset.y + audioPulse,
-          timeRef.current
+          timeRef.current,
+          currentBgColor
         );
         ctx.restore();
       });
@@ -255,7 +263,8 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           dimensions.height / 2,
           offset.x,
           offset.y,
-          timeRef.current
+          timeRef.current,
+          currentBgColor
         );
       }
 
