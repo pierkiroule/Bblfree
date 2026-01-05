@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BubbleLoopLogo from '../components/BubbleLoopLogo';
+import FeaturesModal from '../components/FeaturesModal';
 
 const PUNCHLINES = [
   'Une adaptation transnumériste du squiggle de Winnicott.',
@@ -22,7 +23,7 @@ interface HomeViewProps {
 
 export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
   const [punchlineIndex, setPunchlineIndex] = useState(0);
-
+  const [showFeaturesModal, setShowFeaturesModal] = useState(false);
   useEffect(() => {
     const id = setInterval(() => {
       setPunchlineIndex((prev) => (prev + 1) % PUNCHLINES.length);
@@ -107,7 +108,17 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
         <button className="text-slate-400 font-extrabold uppercase text-xs tracking-widest mt-2 hover:text-slate-600 transition-colors">
           Mes Archives
         </button>
+
+        <button
+          onClick={() => setShowFeaturesModal(true)}
+          className="text-primary font-bold text-sm mt-3 hover:text-primary/80 transition-colors underline underline-offset-2"
+        >
+          Fonctionnalités – Démo & futur
+        </button>
       </motion.div>
+
+      {/* Features Modal */}
+      <FeaturesModal open={showFeaturesModal} onOpenChange={setShowFeaturesModal} />
 
       {/* Concept Card */}
       <motion.div
