@@ -1,10 +1,29 @@
-import React from 'react';
-import { Play, Pause, Trash2, Pencil, Sparkles, CircleDot, Stamp, Mic, MicOff, Eraser, Undo2, Redo2, ZoomIn, ZoomOut, Download, Image } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import {
+  Trash2,
+  Pencil,
+  Sparkles,
+  CircleDot,
+  Stamp,
+  Mic,
+  Eraser,
+  Undo2,
+  Redo2,
+  ZoomIn,
+  ZoomOut,
+  Download,
+  Image,
+} from 'lucide-react';
+
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { BrushMode } from '@/hooks/useLoopTime';
 import { STAMPS, StampType } from './BrushRenderer';
 import { AudioData } from '@/hooks/useAudioReactive';
+
+/* ===============================
+   TYPES
+=============================== */
 
 interface BubbleControlsProps {
   colors: string[];
@@ -13,25 +32,29 @@ interface BubbleControlsProps {
   brushOpacity: number;
   brushMode: BrushMode;
   stampType: StampType;
-  isPlaying: boolean;
-  loopProgress: number;
   zoom: number;
   canUndo: boolean;
   canRedo: boolean;
+
   isListening?: boolean;
   audioData?: AudioData;
+
   onColorChange: (color: string) => void;
   onBrushSizeChange: (size: number) => void;
   onBrushOpacityChange: (opacity: number) => void;
   onBrushModeChange: (mode: BrushMode) => void;
   onStampTypeChange: (stamp: StampType) => void;
-  onTogglePlayback: () => void;
-  onClear: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
+
   onUndo: () => void;
   onRedo: () => void;
-  onToggleAudio?: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onClear: () => void;
+
+  /* AUDIO */
+  onStartMic?: () => void;
+  onImportAudio?: (file: File) => void;
+
   onExport: () => void;
   onOpenGallery: () => void;
 }
@@ -44,44 +67,57 @@ const BRUSH_MODES: { mode: BrushMode; icon: typeof Pencil; label: string }[] = [
   { mode: 'eraser', icon: Eraser, label: 'Gomme' },
 ];
 
-export default function BubbleControls({
-  colors,
-  activeColor,
-  brushSize,
-  brushOpacity,
-  brushMode,
-  stampType,
-  isPlaying,
-  loopProgress,
-  zoom,
-  canUndo,
-  canRedo,
-  isListening = false,
-  audioData,
-  onColorChange,
-  onBrushSizeChange,
-  onBrushOpacityChange,
-  onBrushModeChange,
-  onStampTypeChange,
-  onTogglePlayback,
-  onClear,
-  onZoomIn,
-  onZoomOut,
-  onUndo,
-  onRedo,
-  onToggleAudio,
-  onExport,
-  onOpenGallery,
-}: BubbleControlsProps) {
+/* ===============================
+   COMPONENT
+=============================== */
+
+export default function BubbleControls(props: BubbleControlsProps) {
+  const {
+    colors,
+    activeColor,
+    brushSize,
+    brushOpacity,
+    brushMode,
+    stampType,
+    zoom,
+    canUndo,
+    canRedo,
+    isListening = false,
+    audioData,
+
+    onColorChange,
+    onBrushSizeChange,
+    onBrushOpacityChange,
+    onBrushModeChange,
+    onStampTypeChange,
+    onUndo,
+    onRedo,
+    onZoomIn,
+    onZoomOut,
+    onClear,
+    onStartMic,
+    onImportAudio,
+    onExport,
+    onOpenGallery,
+  } = props;
+
+  const [showAudioMenu, setShowAudioMenu] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* ===============================
+     RENDER
+  =============================== */
+
   return (
     <div className="flex flex-col gap-3 w-full max-w-md">
-      {/* Brush Mode Selector */}
+
+      {/* ================= Brush Modes ================= */}
       <div className="flex justify-center gap-2">
         {BRUSH_MODES.map(({ mode, icon: Icon, label }) => (
           <Button
             key={mode}
-            variant={brushMode === mode ? 'default' : 'outline'}
             size="sm"
+            variant={brushMode === mode ? 'default' : 'outline'}
             onClick={() => onBrushModeChange(mode)}
             className="gap-1.5"
             title={label}
@@ -92,7 +128,7 @@ export default function BubbleControls({
         ))}
       </div>
 
-      {/* Stamp Selector (only when stamp mode is active) */}
+      {/* ================= Stamp Selector ================= */}
       {brushMode === 'stamp' && (
         <div className="flex justify-center gap-2 flex-wrap">
           {(Object.keys(STAMPS) as StampType[]).map((stamp) => (
@@ -101,14 +137,12 @@ export default function BubbleControls({
               onClick={() => onStampTypeChange(stamp)}
               className={`
                 w-10 h-10 rounded-lg flex items-center justify-center text-xl
-                transition-all duration-200 border-2
+                border-2 transition-all
                 ${stampType === stamp
                   ? 'border-primary bg-primary/10 scale-110'
-                  : 'border-muted bg-card hover:border-primary/50'
-                }
+                  : 'border-muted bg-card hover:border-primary/50'}
               `}
               style={{ color: activeColor }}
-              title={stamp}
             >
               {STAMPS[stamp]}
             </button>
@@ -116,190 +150,158 @@ export default function BubbleControls({
         </div>
       )}
 
-      {/* Color Palette */}
+      {/* ================= Colors ================= */}
       <div className="flex flex-wrap justify-center gap-2">
         {colors.map((color) => (
           <button
             key={color}
             onClick={() => onColorChange(color)}
             className={`
-              w-7 h-7 rounded-full transition-all duration-200
+              w-7 h-7 rounded-full transition-all
               ${activeColor === color
                 ? 'ring-2 ring-offset-2 ring-primary scale-110'
-                : 'hover:scale-105'
-              }
+                : 'hover:scale-105'}
             `}
-            style={{
-              backgroundColor: color,
-              boxShadow: activeColor === color
-                ? `0 0 12px ${color}`
-                : 'inset 0 0 0 1px rgba(0,0,0,0.1)',
-            }}
-            aria-label={`Couleur ${color}`}
+            style={{ backgroundColor: color }}
           />
         ))}
       </div>
 
-      {/* Brush Size & Opacity Controls */}
-      <div className="flex items-center gap-3 glass-panel px-4 py-3 rounded-xl flex-wrap">
-        {/* Brush Preview */}
+      {/* ================= Size / Opacity ================= */}
+      <div className="flex gap-3 glass-panel px-4 py-3 rounded-xl flex-wrap items-center">
+
+        {/* Preview */}
         <div
-          className="rounded-full shrink-0 flex items-center justify-center"
+          className="rounded-full shrink-0"
           style={{
             width: Math.max(12, brushSize),
             height: Math.max(12, brushSize),
-            backgroundColor: brushMode === 'eraser' ? '#ffffff' : (brushMode === 'glow' ? 'transparent' : activeColor),
+            backgroundColor:
+              brushMode === 'eraser'
+                ? '#fff'
+                : brushMode === 'glow'
+                ? 'transparent'
+                : activeColor,
             opacity: brushMode === 'eraser' ? 1 : brushOpacity,
-            boxShadow: brushMode === 'glow' ? `0 0 ${brushSize}px ${activeColor}` : (brushMode === 'eraser' ? 'inset 0 0 0 2px hsl(var(--muted))' : 'none'),
-            border: brushMode === 'glow' ? `2px solid ${activeColor}` : 'none',
+            boxShadow:
+              brushMode === 'glow'
+                ? `0 0 ${brushSize}px ${activeColor}`
+                : 'none',
           }}
-        >
-          {brushMode === 'stamp' && (
-            <span style={{ fontSize: brushSize * 0.8, color: activeColor }}>
-              {STAMPS[stampType]}
-            </span>
-          )}
-        </div>
+        />
 
-        {/* Brush Size */}
+        {/* Size */}
         <div className="flex items-center gap-2 flex-1 min-w-[100px]">
-          <span className="text-xs text-muted-foreground w-8">Taille</span>
+          <span className="text-xs w-8">Taille</span>
           <Slider
             value={[brushSize]}
             min={4}
             max={40}
             step={1}
             onValueChange={(v) => onBrushSizeChange(v[0])}
-            className="flex-1"
           />
-          <span className="text-xs text-muted-foreground w-6">{brushSize}</span>
+          <span className="text-xs w-6">{brushSize}</span>
         </div>
 
-        {/* Brush Opacity */}
+        {/* Opacity */}
         <div className="flex items-center gap-2 flex-1 min-w-[100px]">
-          <span className="text-xs text-muted-foreground w-8">Opacité</span>
+          <span className="text-xs w-8">Opacité</span>
           <Slider
             value={[brushOpacity * 100]}
             min={10}
             max={100}
             step={5}
             onValueChange={(v) => onBrushOpacityChange(v[0] / 100)}
-            className="flex-1"
           />
-          <span className="text-xs text-muted-foreground w-6">{Math.round(brushOpacity * 100)}%</span>
+          <span className="text-xs w-6">{Math.round(brushOpacity * 100)}%</span>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center justify-center gap-2 flex-wrap glass-panel px-4 py-2 rounded-xl">
-        {/* Undo/Redo */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onUndo}
-          disabled={!canUndo}
-          className="shrink-0"
-          aria-label="Annuler"
-        >
+      {/* ================= Actions ================= */}
+      <div className="flex justify-center gap-2 flex-wrap glass-panel px-4 py-2 rounded-xl">
+
+        <Button size="icon" variant="ghost" onClick={onUndo} disabled={!canUndo}>
           <Undo2 className="w-4 h-4" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onRedo}
-          disabled={!canRedo}
-          className="shrink-0"
-          aria-label="Rétablir"
-        >
+        <Button size="icon" variant="ghost" onClick={onRedo} disabled={!canRedo}>
           <Redo2 className="w-4 h-4" />
         </Button>
 
-        <div className="w-px h-6 bg-border mx-1" />
-
-        {/* Zoom */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onZoomOut}
-          disabled={zoom <= 0.5}
-          className="shrink-0"
-          aria-label="Zoom arrière"
-        >
+        <Button size="icon" variant="ghost" onClick={onZoomOut}>
           <ZoomOut className="w-4 h-4" />
         </Button>
-        <span className="text-xs text-muted-foreground w-10 text-center">{Math.round(zoom * 100)}%</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onZoomIn}
-          disabled={zoom >= 3}
-          className="shrink-0"
-          aria-label="Zoom avant"
-        >
+        <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
+        <Button size="icon" variant="ghost" onClick={onZoomIn}>
           <ZoomIn className="w-4 h-4" />
         </Button>
 
-        <div className="w-px h-6 bg-border mx-1" />
-
-        {/* Audio Toggle */}
-        {onToggleAudio && (
-          <Button
-            variant={isListening ? 'default' : 'ghost'}
-            size="icon"
-            onClick={onToggleAudio}
-            className={`shrink-0 transition-all ${isListening ? 'bg-red-500 hover:bg-red-600 text-white' : ''}`}
-            aria-label={isListening ? 'Désactiver micro' : 'Activer micro'}
-          >
-            {isListening ? (
-              <Mic className="w-5 h-5" />
-            ) : (
-              <MicOff className="w-5 h-5" />
-            )}
-          </Button>
-        )}
-
-        {/* Clear */}
+        {/* AUDIO */}
         <Button
-          variant="ghost"
           size="icon"
-          onClick={onClear}
-          className="shrink-0 text-destructive hover:text-destructive"
-          aria-label="Effacer"
+          variant={isListening ? 'default' : 'ghost'}
+          onClick={() => setShowAudioMenu(v => !v)}
         >
-          <Trash2 className="w-5 h-5" />
+          <Mic />
         </Button>
 
-        <div className="w-px h-6 bg-border mx-1" />
-
-        {/* Export & Gallery */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onExport}
-          className="shrink-0"
-          aria-label="Exporter GIF"
-        >
-          <Download className="w-5 h-5" />
+        <Button size="icon" variant="ghost" onClick={onClear} className="text-destructive">
+          <Trash2 />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onOpenGallery}
-          className="shrink-0"
-          aria-label="Galerie"
-        >
-          <Image className="w-5 h-5" />
+
+        <Button size="icon" variant="ghost" onClick={onExport}>
+          <Download />
+        </Button>
+        <Button size="icon" variant="ghost" onClick={onOpenGallery}>
+          <Image />
         </Button>
       </div>
 
-      {/* Audio Level Indicator */}
+      {/* ================= Audio Source Menu ================= */}
+      {showAudioMenu && (
+        <div className="flex justify-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setShowAudioMenu(false);
+              onStartMic?.();
+            }}
+          >
+            🎙️ Micro
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setShowAudioMenu(false);
+              fileInputRef.current?.click();
+            }}
+          >
+            📁 Import audio
+          </Button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onImportAudio?.(file);
+            }}
+          />
+        </div>
+      )}
+
+      {/* ================= Audio Visualizer ================= */}
       {isListening && audioData && (
         <div className="flex gap-1 h-6 items-end justify-center">
-          {audioData.frequencies.slice(0, 16).map((freq, i) => (
+          {audioData.frequencies.slice(0, 16).map((v, i) => (
             <div
               key={i}
-              className="w-2 bg-gradient-to-t from-primary to-accent rounded-sm transition-all duration-75"
-              style={{ height: `${Math.max(4, freq * 24)}px` }}
+              className="w-2 rounded-sm bg-gradient-to-t from-primary to-accent"
+              style={{ height: `${Math.max(4, v * 24)}px` }}
             />
           ))}
         </div>

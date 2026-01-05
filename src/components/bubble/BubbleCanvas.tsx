@@ -40,6 +40,14 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   const [isPanning, setIsPanning] = useState(false);
   const lastPanPoint = useRef({ x: 0, y: 0 });
   const timeRef = useRef(0);
+  const {
+  isListening,
+  audioData,
+  source,
+  startMic,
+  loadAudioFile,
+  stop,
+} = useAudioReactive();
 
   // Modals
   const [showPaletteModal, setShowPaletteModal] = useState(false);
@@ -68,7 +76,7 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
   } = useLoopTime({ loopDuration });
 
   const { offset } = useCameraMotion({ intensity: 0.4, enabled: true });
-  const { isListening, audioData, toggleListening } = useAudioReactive();
+  
 
   // Gallery & Export
   const { items: galleryItems, saveItem, deleteItem, renameItem } = useGallery();
@@ -238,10 +246,13 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       offCtx.translate(dimensions.width / 2 + pan.x, dimensions.height / 2 + pan.y);
       offCtx.scale(zoom, zoom);
       offCtx.translate(-dimensions.width / 2, -dimensions.height / 2);
-
+const freqs = audioData.frequencies;
+const freqsLen = freqs.length || 1;
       const visibleStrokes = getVisibleStrokes(loopProgress);
       visibleStrokes.forEach((stroke, i) => {
-        const strokeScale = isListening ? 1 + (audioData.frequencies[i % audioData.frequencies.length] || 0) * 0.1 : 1;
+        const strokeScale = isListening
+  ? 1 + (freqs[i % freqsLen] || 0) * 0.1
+  : 1;
         
         offCtx.save();
         offCtx.translate(dimensions.width / 2, dimensions.height / 2);
@@ -332,6 +343,33 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
       }
       ctx.restore();
 
+// === AUDIO RING (VISIBLE SUPPORT) ===
+if (isListening) {
+  ctx.save();
+  ctx.beginPath();
+
+  const ringRadius =
+    dimensions.radius + 6 + audioData.bass * 12;
+
+  ctx.arc(
+    dimensions.width / 2,
+    dimensions.height / 2,
+    ringRadius,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.strokeStyle = `hsla(280, 90%, 65%, ${0.35 + audioData.volume * 0.4})`;
+  ctx.lineWidth = 2 + audioData.bass * 2;
+  ctx.shadowBlur = 10 + audioData.bass * 20;
+  ctx.shadowColor = 'hsla(280,90%,70%,0.6)';
+
+  ctx.stroke();
+  ctx.restore();
+}
+
+
+
       // === MICRO-BUBBLES AUDIO-REACTIVE EFFECT WITH DISPERSION ===
       if (isListening && audioData.volume > 0.05) {
         // Collect colors from strokes (or use defaults)
@@ -359,14 +397,17 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
           const angle = baseAngle + wobble;
 
           // Distance: starts at border, escapes outward progressively
-          const startDist = dimensions.radius + 2;
+          const ringRadius = dimensions.radius + 6 + audioData.bass * 12;
+const startDist = ringRadius;
           const maxEscape = 40 + (seed % 20); // Max distance to travel
           const escapeEase = 1 - Math.pow(1 - lifecycleProgress, 2); // Ease out
           const escapeDist = escapeEase * maxEscape;
           
+          const freqs = audioData.frequencies;
+const freqsLen = freqs.length || 1;
           // Audio makes them jump/pulse
-          const freqIndex = i % audioData.frequencies.length;
-          const freqValue = audioData.frequencies[freqIndex] || 0;
+          const freqIndex = i % freqsLen;
+const freqValue = freqs[freqIndex] || 0;
           const audioPush = freqValue * 15 + audioData.bass * 8;
           
           const dist = startDist + escapeDist + audioPush;
@@ -529,6 +570,12 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
     setZoom(z => Math.max(0.25, Math.min(5, z + delta)));
   }, []);
+  
+  useEffect(() => {
+  return () => {
+    stop();
+  };
+}, [stop]);
 
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-3xl mx-auto px-4">
@@ -620,7 +667,10 @@ export default function BubbleCanvas({ loopDuration = 10000 }: BubbleCanvasProps
         onOpenGallery={() => setShowGalleryDialog(true)}
         isListening={isListening}
         audioData={audioData}
-        onToggleAudio={toggleListening}
+onStartMic={startMic}
+onImportAudio={loadAudioFile}
+onStopAudio={stop}
+audioSource={source}
         brushSize={brushSize}
         brushOpacity={brushOpacity}
         onBrushSizeChange={setBrushSize}

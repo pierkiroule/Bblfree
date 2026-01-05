@@ -1,21 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import BubbleLoopLogo from '../components/BubbleLoopLogo';
-import FeaturesModal from '../components/FeaturesModal';
-import TutorialModal from '../components/TutorialModal';
-import MediationModal from '../components/MediationModal';
-import UseCasesModal from '../components/UseCasesModal';
+import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+import BubbleLoopLogo from "../components/BubbleLoopLogo";
+import BubbleLoopTitle from "../components/BubbleLoopTitle";
+
+import FeaturesModal from "../components/FeaturesModal";
+import TutorialModal from "../components/TutorialModal";
+import MediationModal from "../components/MediationModal";
+import UseCasesModal from "../components/UseCasesModal";
+
 const PUNCHLINES = [
-  'Une adaptation transnumériste du squiggle de Winnicott.',
-  'Un dispositif de co-création fondé sur l\'aire transitionnelle.',
-  'Le dessin comme médiation, non comme production à interpréter.',
-  'Le temps intégré comme tiers relationnel.',
-  'Un looper transmedia au service du processus.',
-  'Aucune analyse automatique. Aucun scoring.',
-  'Un cadre contenant, favorisant le jeu et l\'exploration.',
-  'Pensé pour la psychothérapie, l\'art-thérapie et la médiation.',
-  'Le numérique utilisé comme support de la relation.',
-  'BubbleLoop. Un espace de jeu clinique transnumériste.',
+  "Une adaptation transnumériste du squiggle de Winnicott.",
+  "Un dispositif de co-création fondé sur l’aire transitionnelle.",
+  "Le dessin comme médiation, non comme production à interpréter.",
+  "Le temps intégré comme tiers relationnel.",
+  "Un looper transmedia au service du processus.",
+  "Aucune analyse automatique. Aucun scoring.",
+  "Un cadre contenant, favorisant le jeu et l’exploration.",
+  "Pensé pour la psychothérapie, l’art-thérapie et la médiation.",
+  "Le numérique utilisé comme support de la relation.",
+  "BubbleLoop. Un espace de jeu clinique transnumériste."
 ];
 
 interface HomeViewProps {
@@ -24,38 +28,40 @@ interface HomeViewProps {
 }
 
 export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
-  const [punchlineIndex, setPunchlineIndex] = useState(0);
-  const [showFeaturesModal, setShowFeaturesModal] = useState(false);
-  const [showTutorialModal, setShowTutorialModal] = useState(false);
-  const [showMediationModal, setShowMediationModal] = useState(false);
-  const [showUseCasesModal, setShowUseCasesModal] = useState(false);
+  const [punchlineIndex, setPunchlineIndex] = useState<number>(0);
+  const [showFeaturesModal, setShowFeaturesModal] = useState<boolean>(false);
+  const [showTutorialModal, setShowTutorialModal] = useState<boolean>(false);
+  const [showMediationModal, setShowMediationModal] = useState<boolean>(false);
+  const [showUseCasesModal, setShowUseCasesModal] = useState<boolean>(false);
 
   useEffect(() => {
-    const id = setInterval(() => {
+    const id = window.setInterval(() => {
       setPunchlineIndex((prev) => (prev + 1) % PUNCHLINES.length);
     }, 3800);
 
     return () => clearInterval(id);
   }, []);
 
-  const goToSlide = (direction: 'prev' | 'next') => {
+  const goToSlide = (direction: "prev" | "next") => {
     setPunchlineIndex((prev) => {
-      if (direction === 'next') return (prev + 1) % PUNCHLINES.length;
-      if (direction === 'prev') return (prev - 1 + PUNCHLINES.length) % PUNCHLINES.length;
+      if (direction === "next") return (prev + 1) % PUNCHLINES.length;
+      if (direction === "prev")
+        return (prev - 1 + PUNCHLINES.length) % PUNCHLINES.length;
       return prev;
     });
   };
 
   return (
     <section className="flex-1 flex flex-col items-center justify-start py-6 px-4 gap-6 max-w-2xl mx-auto w-full">
-      {/* Hero Section */}
+
+      {/* HERO */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         className="flex flex-col items-center text-center gap-4"
       >
-        {/* Logo with version pill */}
+        {/* Logo + version */}
         <div className="relative animate-pulse-logo">
           <BubbleLoopLogo size={170} />
           <div className="absolute -top-2 -right-2 bg-card text-primary px-3 py-1 rounded-full text-xs font-black uppercase shadow-soft">
@@ -63,21 +69,41 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
           </div>
         </div>
 
-        {/* Title */}
-        <h1 className="text-3xl md:text-4xl font-black uppercase italic bg-gradient-to-r from-slate-800 via-primary to-slate-800 bg-clip-text text-transparent">
-          BubbleLoop•°
-        </h1>
-        
+        {/* TITRE SVG (stable) */}
+        <BubbleLoopTitle className="w-full max-w-md mx-auto" />
+
         <p className="text-muted-foreground text-lg max-w-md">
-          Dessinez en harmonie. Vos traits s'animent en boucle au rythme de la musique.
+          Dessinez en harmonie.  
+          Vos traits s’animent en boucle au rythme de la musique.
         </p>
 
-        {/* Icon Grid */}
+        {/* ICON GRID */}
         <div className="grid grid-cols-3 gap-5 w-full max-w-sm my-6">
           {[
-            { icon: <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>, label: 'Tracer' },
-            { icon: <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>, label: 'Rythmer' },
-            { icon: <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>, label: 'Animer' },
+            {
+              label: "Tracer",
+              icon: (
+                <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              )
+            },
+            {
+              label: "Rythmer",
+              icon: (
+                <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+              )
+            },
+            {
+              label: "Animer",
+              icon: (
+                <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+              )
+            }
           ].map(({ icon, label }) => (
             <motion.div
               key={label}
@@ -92,92 +118,63 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
           ))}
         </div>
 
-        {/* CTA Buttons */}
+        {/* CTA */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onStart}
-          className="w-full max-w-sm bg-primary text-primary-foreground py-4 rounded-2xl font-black uppercase tracking-wider shadow-primary transition-all hover:bg-primary-dark"
+          className="w-full max-w-sm bg-primary text-primary-foreground py-4 rounded-2xl font-black uppercase tracking-wider shadow-primary"
         >
-          Démarrer l'expérience
+          Démarrer l’expérience
         </motion.button>
 
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onOpenGallery}
-          className="w-full max-w-sm glass-panel py-3 rounded-2xl font-bold text-foreground border border-slate-200 hover:bg-card/90 transition-all"
+          className="w-full max-w-sm glass-panel py-3 rounded-2xl font-bold border"
         >
           Galerie constellation
         </motion.button>
 
-        <button className="text-slate-400 font-extrabold uppercase text-xs tracking-widest mt-2 hover:text-slate-600 transition-colors">
-          Mes Archives
-        </button>
-
-        <button
-          onClick={() => setShowFeaturesModal(true)}
-          className="text-primary font-bold text-sm mt-3 hover:text-primary/80 transition-colors underline underline-offset-2"
-        >
-          Fonctionnalités – Démo & futur
-        </button>
-
-        <button
-          onClick={() => setShowTutorialModal(true)}
-          className="text-amber-600 font-bold text-sm mt-1 hover:text-amber-500 transition-colors underline underline-offset-2"
-        >
-          Mini-tuto : Comment ça marche ?
-        </button>
-
-        <button
-          onClick={() => setShowMediationModal(true)}
-          className="text-slate-600 font-bold text-sm mt-1 hover:text-slate-800 transition-colors underline underline-offset-2"
-        >
-          Une médiation transnumériste
-        </button>
-
-        <button
-          onClick={() => setShowUseCasesModal(true)}
-          className="text-emerald-600 font-bold text-sm mt-1 hover:text-emerald-500 transition-colors underline underline-offset-2"
-        >
-          Cas d'usage
-        </button>
+        {/* LINKS */}
+        <div className="flex flex-col gap-1 mt-2">
+          <button onClick={() => setShowFeaturesModal(true)} className="text-primary font-bold text-sm underline">
+            Fonctionnalités – Démo & futur
+          </button>
+          <button onClick={() => setShowTutorialModal(true)} className="text-amber-600 font-bold text-sm underline">
+            Mini-tuto : comment ça marche ?
+          </button>
+          <button onClick={() => setShowMediationModal(true)} className="text-slate-600 font-bold text-sm underline">
+            Une médiation transnumériste
+          </button>
+          <button onClick={() => setShowUseCasesModal(true)} className="text-emerald-600 font-bold text-sm underline">
+            Cas d’usage
+          </button>
+        </div>
       </motion.div>
 
-      {/* Features Modal */}
+      {/* MODALS */}
       <FeaturesModal open={showFeaturesModal} onOpenChange={setShowFeaturesModal} />
-
-      {/* Tutorial Modal */}
       <TutorialModal open={showTutorialModal} onOpenChange={setShowTutorialModal} />
-
-      {/* Mediation Modal */}
       <MediationModal open={showMediationModal} onOpenChange={setShowMediationModal} />
-
-      {/* Use Cases Modal */}
       <UseCasesModal open={showUseCasesModal} onOpenChange={setShowUseCasesModal} />
 
-      {/* Concept Card */}
+      {/* CONCEPT */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
         className="w-full glass-panel p-5 rounded-2xl"
       >
-        <div className="flex flex-col gap-2 mb-3">
-          <span className="badge w-fit">Présentation du concept</span>
-          <p className="text-slate-700">
-            Créé par <strong className="text-foreground">Pierre-Henri Garnier</strong>, Psychologue clinicien et Docteur en sciences de l'information et de la communication.
-          </p>
-        </div>
+        <span className="badge w-fit mb-2 inline-block">Présentation du concept</span>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          BubbleLoop est une expérience de dessin en boucle, inspirée du squiggle de Winnicott et prolongée par une approche transnumériste.
-        </p>
-        <p className="text-muted-foreground text-sm leading-relaxed mt-2">
-          Il propose un espace de résonance contenant où le geste, le son, le texte et l'image se répondent, favorisant l'exploration projective, l'émergence du sens et la co-création dans la relation.
+          BubbleLoop est une expérience de dessin en boucle, inspirée du squiggle de Winnicott
+          et prolongée par une approche transnumériste.
         </p>
       </motion.div>
 
-      {/* Punchline Carousel */}
+      {/* PUNCHLINES */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -185,60 +182,25 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
         className="w-full glass-panel p-5 rounded-2xl"
       >
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <span className="badge">Punchlines concept</span>
-            <div className="text-xs text-muted-foreground mt-1 font-medium">
-              {punchlineIndex + 1} / {PUNCHLINES.length}
-            </div>
-          </div>
+          <span className="badge">Punchlines concept</span>
           <div className="flex gap-2">
-            <button
-              onClick={() => goToSlide('prev')}
-              className="w-10 h-10 rounded-xl bg-card border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition-colors font-bold"
-              aria-label="Précédent"
-            >
-              ←
-            </button>
-            <button
-              onClick={() => goToSlide('next')}
-              className="w-10 h-10 rounded-xl bg-card border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition-colors font-bold"
-              aria-label="Suivant"
-            >
-              →
-            </button>
+            <button onClick={() => goToSlide("prev")} className="w-10 h-10 rounded-xl bg-card border font-bold">←</button>
+            <button onClick={() => goToSlide("next")} className="w-10 h-10 rounded-xl bg-card border font-bold">→</button>
           </div>
         </div>
 
         <div className="min-h-[3rem]">
           <AnimatePresence mode="wait">
-            <motion.div
+            <motion.p
               key={punchlineIndex}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              className="text-lg font-semibold"
             >
-              <p className="text-foreground font-semibold text-lg">
-                {PUNCHLINES[punchlineIndex]}
-              </p>
-            </motion.div>
+              {PUNCHLINES[punchlineIndex]}
+            </motion.p>
           </AnimatePresence>
-        </div>
-
-        {/* Dots */}
-        <div className="flex items-center justify-center gap-2 mt-4" role="tablist">
-          {PUNCHLINES.map((_, idx) => (
-            <button
-              key={idx}
-              className={`w-2 h-2 rounded-full transition-all ${
-                idx === punchlineIndex 
-                  ? 'bg-primary w-4' 
-                  : 'bg-slate-300 hover:bg-slate-400'
-              }`}
-              onClick={() => setPunchlineIndex(idx)}
-              aria-label={`Punchline ${idx + 1}`}
-            />
-          ))}
         </div>
       </motion.div>
     </section>

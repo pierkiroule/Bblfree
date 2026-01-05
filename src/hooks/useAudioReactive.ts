@@ -1,22 +1,26 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 export interface AudioData {
-  volume: number;        // 0-1 overall volume
-  bass: number;          // 0-1 low frequencies
-  mid: number;           // 0-1 mid frequencies  
-  treble: number;        // 0-1 high frequencies
-  frequencies: number[]; // Raw frequency data (normalized)
+  volume: number;
+  bass: number;
+  mid: number;
+  treble: number;
+  frequencies: number[];
 }
 
-interface UseAudioReactiveOptions {
+type AudioSourceType = 'mic' | 'file' | null;
+
+interface Options {
   fftSize?: number;
   smoothingTimeConstant?: number;
 }
 
-export function useAudioReactive(options: UseAudioReactiveOptions = {}) {
-  const { fftSize = 256, smoothingTimeConstant = 0.8 } = options;
-
+export function useAudioReactive({
+  fftSize = 256,
+  smoothingTimeConstant = 0.8,
+}: Options = {}) {
   const [isListening, setIsListening] = useState(false);
+  const [source, setSource] = useState<AudioSourceType>(null);
   const [audioData, setAudioData] = useState<AudioData>({
     volume: 0,
     bass: 0,
@@ -27,117 +31,140 @@ export function useAudioReactive(options: UseAudioReactiveOptions = {}) {
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
+  const bufferSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const animationRef = useRef<number>();
   const dataArrayRef = useRef<Uint8Array | null>(null);
+  const rafRef = useRef<number | null>(null);
 
+  /* ===============================
+     ANALYSE LOOP
+  =============================== */
   const analyze = useCallback(() => {
-    if (!analyserRef.current || !dataArrayRef.current) return;
-
+    const analyser = analyserRef.current;
     const data = dataArrayRef.current;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    analyserRef.current.getByteFrequencyData(data as any);
-    const bufferLength = data.length;
+    if (!analyser || !data) return;
 
-    // Calculate overall volume (RMS)
+    analyser.getByteFrequencyData(data);
+    const len = data.length;
+
     let sum = 0;
-    for (let i = 0; i < bufferLength; i++) {
-      sum += data[i];
-    }
-    const volume = sum / (bufferLength * 255);
+    for (let i = 0; i < len; i++) sum += data[i];
+    const volume = sum / (len * 255);
 
-    // Split into frequency bands
-    const bassEnd = Math.floor(bufferLength * 0.1);
-    const midEnd = Math.floor(bufferLength * 0.5);
+    const bassEnd = Math.floor(len * 0.1);
+    const midEnd = Math.floor(len * 0.5);
 
-    let bassSum = 0;
-    let midSum = 0;
-    let trebleSum = 0;
+    let bass = 0, mid = 0, treble = 0;
 
-    for (let i = 0; i < bassEnd; i++) {
-      bassSum += data[i];
-    }
-    for (let i = bassEnd; i < midEnd; i++) {
-      midSum += data[i];
-    }
-    for (let i = midEnd; i < bufferLength; i++) {
-      trebleSum += data[i];
-    }
+    for (let i = 0; i < bassEnd; i++) bass += data[i];
+    for (let i = bassEnd; i < midEnd; i++) mid += data[i];
+    for (let i = midEnd; i < len; i++) treble += data[i];
 
-    const bass = bassEnd > 0 ? bassSum / (bassEnd * 255) : 0;
-    const mid = (midEnd - bassEnd) > 0 ? midSum / ((midEnd - bassEnd) * 255) : 0;
-    const treble = (bufferLength - midEnd) > 0 ? trebleSum / ((bufferLength - midEnd) * 255) : 0;
+    bass = bassEnd ? bass / (bassEnd * 255) : 0;
+    mid = (midEnd - bassEnd) ? mid / ((midEnd - bassEnd) * 255) : 0;
+    treble = (len - midEnd) ? treble / ((len - midEnd) * 255) : 0;
 
-    // Normalize frequencies array
     const frequencies: number[] = [];
-    const step = Math.max(1, Math.floor(bufferLength / 32));
-    for (let i = 0; i < bufferLength; i += step) {
+    const step = Math.max(1, Math.floor(len / 32));
+    for (let i = 0; i < len; i += step) {
       frequencies.push(data[i] / 255);
     }
 
     setAudioData({ volume, bass, mid, treble, frequencies });
-
-    animationRef.current = requestAnimationFrame(analyze);
+    rafRef.current = requestAnimationFrame(analyze);
   }, []);
 
-  const startListening = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        } 
-      });
+  /* ===============================
+     INIT AUDIO GRAPH
+  =============================== */
+  const initAnalyser = useCallback(() => {
+    if (audioContextRef.current) return audioContextRef.current;
 
-      const audioContext = new AudioContext();
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = fftSize;
-      analyser.smoothingTimeConstant = smoothingTimeConstant;
+    const ctx = new AudioContext();
+    const analyser = ctx.createAnalyser();
+    const gain = ctx.createGain();
 
-      const source = audioContext.createMediaStreamSource(stream);
-      source.connect(analyser);
+    analyser.fftSize = fftSize;
+    analyser.smoothingTimeConstant = smoothingTimeConstant;
 
-      audioContextRef.current = audioContext;
-      analyserRef.current = analyser;
-      sourceRef.current = source;
-      streamRef.current = stream;
-      dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
+    analyser.connect(gain);
+    gain.connect(ctx.destination);
+    gain.gain.value = 0.8;
 
-      setIsListening(true);
-      animationRef.current = requestAnimationFrame(analyze);
+    audioContextRef.current = ctx;
+    analyserRef.current = analyser;
+    gainRef.current = gain;
+    dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
 
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
-      throw error;
-    }
-  }, [fftSize, smoothingTimeConstant, analyze]);
+    return ctx;
+  }, [fftSize, smoothingTimeConstant]);
 
-  const stopListening = useCallback(() => {
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-    }
+  /* ===============================
+     MICRO (analyse seule, sans sortie)
+  =============================== */
+  const startMic = useCallback(async () => {
+    stop();
 
-    if (sourceRef.current) {
-      sourceRef.current.disconnect();
-      sourceRef.current = null;
-    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const ctx = initAnalyser();
+    await ctx.resume();
 
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
+    const mic = ctx.createMediaStreamSource(stream);
+    mic.connect(analyserRef.current!);
 
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
+    streamRef.current = stream;
+    setSource('mic');
+    setIsListening(true);
+    rafRef.current = requestAnimationFrame(analyze);
+  }, [analyze, initAnalyser]);
+
+  /* ===============================
+     AUDIO FILE (audible + analyse)
+  =============================== */
+  const loadAudioFile = useCallback(async (file: File) => {
+    stop();
+
+    const ctx = initAnalyser();
+    await ctx.resume();
+
+    const buffer = await ctx.decodeAudioData(await file.arrayBuffer());
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+
+    src.connect(analyserRef.current!);
+    src.start();
+
+    bufferSourceRef.current = src;
+
+    setSource('file');
+    setIsListening(true);
+    rafRef.current = requestAnimationFrame(analyze);
+  }, [analyze, initAnalyser]);
+
+  /* ===============================
+     STOP
+  =============================== */
+  const stop = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+
+    bufferSourceRef.current?.stop();
+    bufferSourceRef.current = null;
+
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+
+    audioContextRef.current?.close();
+    audioContextRef.current = null;
 
     analyserRef.current = null;
+    gainRef.current = null;
     dataArrayRef.current = null;
 
     setIsListening(false);
+    setSource(null);
     setAudioData({
       volume: 0,
       bass: 0,
@@ -147,26 +174,14 @@ export function useAudioReactive(options: UseAudioReactiveOptions = {}) {
     });
   }, []);
 
-  const toggleListening = useCallback(async () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      await startListening();
-    }
-  }, [isListening, startListening, stopListening]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopListening();
-    };
-  }, [stopListening]);
+  useEffect(() => stop, [stop]);
 
   return {
     isListening,
+    source,
     audioData,
-    startListening,
-    stopListening,
-    toggleListening,
+    startMic,
+    loadAudioFile,
+    stop,
   };
 }
