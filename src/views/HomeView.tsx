@@ -141,11 +141,14 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
         <div className="flex flex-col gap-2 mb-3">
           <span className="badge w-fit">Présentation du concept</span>
           <p className="text-slate-700">
-            Conçu par <strong className="text-foreground">Pierre-Henri Garnier</strong>, Psychologue Clinicien et Docteur en InfoCom.
+            Créé par <strong className="text-foreground">Pierre-Henri Garnier</strong>, Psychologue clinicien et Docteur en sciences de l'information et de la communication.
           </p>
         </div>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          BubbleLoop est une expérience de dessin en boucle, inspirée du squiggle de Winnicott et prolongée par une approche transnumériste. Elle invite à explorer un espace contenant où le geste, le son et l'écran deviennent des partenaires de jeu, pensés pour soutenir la relation et la co-création.
+          BubbleLoop est une expérience de dessin en boucle, inspirée du squiggle de Winnicott et prolongée par une approche transnumériste.
+        </p>
+        <p className="text-muted-foreground text-sm leading-relaxed mt-2">
+          Il propose un espace de résonance contenant où le geste, le son, le texte et l'image se répondent, favorisant l'exploration projective, l'émergence du sens et la co-création dans la relation.
         </p>
       </motion.div>
 
