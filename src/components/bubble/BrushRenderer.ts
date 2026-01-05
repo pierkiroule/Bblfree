@@ -48,6 +48,42 @@ function drawPencilStroke(
   ctx.restore();
 }
 
+// Draw eraser stroke - draws with the background color
+function drawEraserStroke(
+  ctx: CanvasRenderingContext2D,
+  points: LoopPoint[],
+  width: number,
+  centerX: number,
+  centerY: number,
+  offsetX: number,
+  offsetY: number,
+  backgroundColor: string = '#ffffff'
+) {
+  if (points.length < 2) return;
+
+  ctx.save();
+  ctx.strokeStyle = backgroundColor;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.beginPath();
+  ctx.moveTo(
+    points[0].x + centerX + offsetX,
+    points[0].y + centerY + offsetY
+  );
+
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(
+      points[i].x + centerX + offsetX,
+      points[i].y + centerY + offsetY
+    );
+  }
+
+  ctx.stroke();
+  ctx.restore();
+}
+
 // Draw a glow trail stroke
 function drawGlowStroke(
   ctx: CanvasRenderingContext2D,
@@ -208,7 +244,8 @@ export function renderStroke(
   centerY: number,
   offsetX: number,
   offsetY: number,
-  time: number = 0
+  time: number = 0,
+  backgroundColor: string = '#ffffff'
 ) {
   if (stroke.points.length === 0) return;
 
@@ -237,6 +274,12 @@ export function renderStroke(
       );
       break;
     case 'eraser':
+      drawEraserStroke(
+        ctx, stroke.points, stroke.width,
+        centerX, centerY, offsetX, offsetY,
+        backgroundColor
+      );
+      break;
     case 'pencil':
     default:
       drawPencilStroke(
