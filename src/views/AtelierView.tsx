@@ -28,7 +28,7 @@ export default function AtelierView() {
             BubbleLoop
           </h1>
           <p className="text-muted-foreground text-sm">
-            Dessinez • Résonnez • Partager
+            Dessinez • Résonnez • Partagez
           </p>
         </div>
 
