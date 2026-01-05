@@ -4,7 +4,7 @@ import BubbleLoopLogo from '../components/BubbleLoopLogo';
 import FeaturesModal from '../components/FeaturesModal';
 import TutorialModal from '../components/TutorialModal';
 import MediationModal from '../components/MediationModal';
-
+import UseCasesModal from '../components/UseCasesModal';
 const PUNCHLINES = [
   'Une adaptation transnumériste du squiggle de Winnicott.',
   'Un dispositif de co-création fondé sur l\'aire transitionnelle.',
@@ -28,6 +28,7 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
   const [showFeaturesModal, setShowFeaturesModal] = useState(false);
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [showMediationModal, setShowMediationModal] = useState(false);
+  const [showUseCasesModal, setShowUseCasesModal] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -134,6 +135,13 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
         >
           Une médiation transnumériste
         </button>
+
+        <button
+          onClick={() => setShowUseCasesModal(true)}
+          className="text-emerald-600 font-bold text-sm mt-1 hover:text-emerald-500 transition-colors underline underline-offset-2"
+        >
+          Cas d'usage
+        </button>
       </motion.div>
 
       {/* Features Modal */}
@@ -144,6 +152,9 @@ export default function HomeView({ onStart, onOpenGallery }: HomeViewProps) {
 
       {/* Mediation Modal */}
       <MediationModal open={showMediationModal} onOpenChange={setShowMediationModal} />
+
+      {/* Use Cases Modal */}
+      <UseCasesModal open={showUseCasesModal} onOpenChange={setShowUseCasesModal} />
 
       {/* Concept Card */}
       <motion.div
